@@ -1510,3 +1510,69 @@ RESULTADO:
 ✅ Canary consegue conectar ao banco de dados
 
 ================================================================================
+
+================================================================================
+FASE 34 – REMOÇÃO DE SENHAS DO HISTÓRICO DO GIT E CONFIGURAÇÃO DE SEGURANÇA
+Data: 23/04/2026
+================================================================================
+
+CONTEXTO:
+- O commit inicial do repositório continha a senha real do MySQL nos arquivos
+  `LoginServer/.env.txt` e `Projeto MCR.txt` (docs).
+- Por ser um repositório público no GitHub, era necessário remover completamente
+  a senha do histórico de commits e prevenir futuros vazamentos.
+- A senha foi substituída pelo placeholder `<Senha>` em toda a documentação.
+
+AÇÕES REALIZADAS:
+1. Substituição de todas as ocorrências da senha real por `<Senha>` nos arquivos
+   locais (`Projeto MCR.txt`, `MCR_DevLog.txt`, `LoginServer/.env.txt`).
+2. Commit inicial das alterações com `git add . && git commit`.
+3. Uso do BFG Repo-Cleaner para reescrever o histórico completo:
+   - Arquivo `replacements.txt` com o mapeamento `<SenhaOriginal>==><SenhaPlaceholder>`.
+   - Comando: `java -jar bfg-1.14.0.jar --replace-text replacements.txt .`
+4. Sincronização de objetos Git LFS com `git lfs push --all origin`.
+5. Push forçado (`git push origin --force --all`) para sobrescrever o histórico remoto.
+6. Remoção do arquivo `LoginServer/.env.txt` do rastreamento do Git:
+   - `git rm --cached LoginServer/.env.txt`
+7. Criação do template `LoginServer/.env.example` (sem senha real) para orientar
+   novos desenvolvedores.
+8. Atualização do `.gitignore` da raiz para incluir `LoginServer/.env.txt` e outros
+   arquivos sensíveis (`Canary/config.lua`, `MyAAC/config.local.php`).
+
+PROBLEMAS ENCONTRADOS:
+- `git filter-branch` no Windows (PowerShell) apresentou erro de sintaxe Bash,
+  exigindo o uso do BFG como alternativa.
+- Push foi rejeitado múltiplas vezes devido a objetos Git LFS não sincronizados
+  (`GH008: Your push referenced at least 4 unknown Git LFS objects`).
+- Commit inicial tinha `Projeto MCR.txt` e `MCR_DevLog.txt` na raiz e também em
+  `docs/`, exigindo verificação em ambas as localizações.
+- Arquivo `config.lua` do Canary não estava sendo rastreado pelo Git (já estava
+  no `.gitignore` ou nunca foi adicionado), eliminando a necessidade de ação.
+
+SOLUÇÕES APLICADAS:
+- BFG Repo-Cleaner como alternativa robusta ao `git filter-branch`.
+- `git lfs push --all origin` antes do push forçado para resolver o erro GH008.
+- Verificação com `git log -S "<SenhaOriginal>" --all` e `git grep` para confirmar a
+  remoção completa em todos os commits e branches.
+
+RESULTADO:
+✅ Senha real completamente removida do histórico público do GitHub
+✅ Histórico reescrito com placeholder `<Senha>` em todos os arquivos
+✅ `LoginServer/.env.txt` removido do rastreamento e adicionado ao `.gitignore`
+✅ Template `LoginServer/.env.example` criado para novos desenvolvedores
+✅ Push forçado bem-sucedido após sincronização do Git LFS
+✅ Verificação final confirma ausência total da senha no repositório remoto
+
+LIÇÕES APRENDIDAS:
+- `git filter-branch` tem problemas de compatibilidade no Windows; BFG é mais confiável.
+- Objetos Git LFS precisam ser sincronizados (`git lfs push --all`) antes de um
+  push forçado que reescreve o histórico.
+- Sempre verificar com `git log -S "string" --all` após operações de limpeza.
+- Arquivos de configuração com senhas NUNCA devem ser commitados; usar `.gitignore`
+  e arquivos `.example` como prática padrão.
+
+ARQUIVOS MODIFICADOS/CRIADOS NESTA FASE:
+- LoginServer/.env.txt (removido do Git, mantido localmente)
+- LoginServer/.env.example (criado como template)
+- .gitignore (atualizado com regras de segurança)
+- Histórico completo do repositório (reescrito pelo BFG)
