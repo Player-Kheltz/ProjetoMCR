@@ -1279,3 +1279,108 @@ encorajando modificações profundas e fornecendo diretrizes claras para
 desenvolvedores e assistentes.
 ================================================================================
 
+================================================================================
+FASE 28 – CONFIGURAÇÃO DO REPOSITÓRIO GIT E FLUXO DE TRABALHO
+Data: [23/04/2026 - 00:01]
+================================================================================
+
+CONTEXTO:
+- Necessidade de versionar todo o código-fonte do projeto (Canary, OTClient,
+  Login Server) para facilitar o gerenciamento, rastreabilidade e colaboração
+  com o assistente.
+- O objetivo é criar um repositório Git estruturado, com arquivos .gitignore
+  apropriados para evitar o envio de binários, caches e configurações locais.
+
+AÇÕES REALIZADAS:
+1. Definição da estrutura de diretórios do repositório raiz (ProjetoMCR/).
+2. Criação de arquivos .gitignore específicos para cada componente (Canary,
+   OTClient, Login Server, MyAAC), baseados nas melhores práticas da comunidade.
+3. Inicialização do repositório Git local e realização do commit inicial.
+4. Estabelecimento de um fluxo de trabalho para comunicação de mudanças com o
+   assistente, utilizando `git diff --stat` ou acesso direto ao repositório remoto.
+
+RESULTADO:
+- O código-fonte do Projeto MCR está agora versionado e organizado.
+- O assistente poderá receber resumos precisos das alterações ou acessar o
+  repositório remoto para análises mais profundas.
+- A rastreabilidade do desenvolvimento foi significativamente aprimorada.
+
+PRÓXIMOS PASSOS:
+- Conectar o repositório local a um serviço remoto (GitHub, GitLab) e enviar o
+  código.
+- Utilizar o novo fluxo de trabalho para as próximas fases de implementação.
+
+================================================================================
+FASE 29 – CONSOLIDAÇÃO E REESTRUTURAÇÃO DA DOCUMENTAÇÃO CANÔNICA
+Data: 23/04/2026
+================================================================================
+
+CONTEXTO:
+- A documentação do projeto havia crescido de forma orgânica, misturando
+  especificações estáveis com o histórico de desenvolvimento.
+- Para otimizar a colaboração com o assistente de IA, era necessário um documento
+  "canônico" que servisse como fonte única da verdade, contendo regras claras,
+  o estado atual e as diretrizes de atuação, separado do diário histórico (DevLog).
+
+AÇÕES REALIZADAS:
+1. Revisão completa dos arquivos `Projeto MCR.txt` e `MCR_DevLog.txt`.
+2. Criação do novo arquivo `MCR_ESPECIFICACAO_CANONICA.txt`, consolidando:
+   - A filosofia do projeto e o pilar da "Jornada 100% no Cliente".
+   - A regra de ouro do "Escopo de Customização Máximo" (autorização para modificar
+     código-fonte).
+   - O estado atual validado da implementação.
+   - O manual de design e interação (hierarquia de ferramentas de UI).
+   - As meta-instruções e o checklist de autorevisão obrigatória para o assistente.
+3. Atualização deste DevLog para refletir a mudança documental.
+
+RESULTADO:
+- A documentação do projeto agora é mais clara, objetiva e acionável.
+- O assistente de IA possui um guia de conduta explícito e uma fonte de contexto
+  técnica precisa, eliminando ambiguidades e acelerando o desenvolvimento.
+- A separação entre "Especificação" (o que é) e "DevLog" (como foi feito) está
+  formalizada.
+
+PRÓXIMOS PASSOS:
+- Utilizar o novo arquivo `MCR_ESPECIFICACAO_CANONICA.txt` como a principal
+  referência para o assistente em todas as futuras interações.
+- Manter o DevLog atualizado com o progresso das implementações.
+================================================================================
+
+================================================================================
+FASE 30 – REESTRUTURAÇÃO COMPLETA DO PROJETO MCR.TXT E ADOÇÃO DE DESTAQUE POR CORES
+Data: 23/04/2026
+================================================================================
+
+CONTEXTO:
+- O documento `Projeto MCR.txt` havia sido simplificado em excesso na versão anterior,
+  perdendo detalhes técnicos cruciais para o assistente.
+- Tentativas de implementar links clicáveis no chat do OTClient não obtiveram sucesso,
+  devido à complexidade de modificar o módulo `game_console`.
+
+AÇÕES REALIZADAS:
+1. Restauração completa do `Projeto MCR.txt` com seu nível de detalhe original,
+   incluindo tabelas completas de configuração, notas técnicas do DevLog e exemplos
+   de código extensos.
+2. Atualização do documento para refletir a adoção do sistema de **destaque de palavras
+   por cor** (estilo Tibia clássico) em substituição aos links clicáveis. Esta
+   abordagem utiliza tags nativas `{{#RRGGBB}}texto{{/}}` do Canary, eliminando a
+   necessidade de modificar o cliente.
+3. Inclusão explícita do link do repositório oficial do Projeto MCR no cabeçalho e
+   esclarecimento de que os fontes customizados estão contidos em suas subpastas.
+4. Adição da seção 2.11 sobre gerenciamento do código-fonte com Git e fluxo de
+   colaboração com o assistente.
+5. Atualização da seção 6.9 para incluir a obrigatoriedade da seção `📤 Como Atualizar
+   o Repositório Git com Estas Mudanças` nas respostas do assistente.
+
+RESULTADO:
+- O `Projeto MCR.txt` voltou a ser um documento completo e autossuficiente, contendo
+  todas as regras, contexto e exemplos necessários para o assistente.
+- A mudança para destaques coloridos simplifica a implementação de quests, alinhando-se
+  com a capacidade nativa do OTClient Redemption.
+- O fluxo de trabalho com Git está formalizado, garantindo que o assistente possa
+  orientar sobre versionamento em todas as interações de código.
+
+PRÓXIMOS PASSOS:
+- Utilizar a nova versão do documento como referência primária.
+- Implementar as quests utilizando o padrão de cores definido.
+================================================================================
