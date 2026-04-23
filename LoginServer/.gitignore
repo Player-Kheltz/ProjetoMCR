@@ -1,0 +1,25 @@
+# LoginServer/.gitignore
+
+# --- Arquivos de Build Go ---
+/login-server
+/login-server.exe
+*.exe
+*.test
+*.out
+
+# --- Dependências Go ---
+vendor/
+
+# --- Configurações Locais ---
+.env
+*.local
+*.secret
+
+# --- Logs ---
+*.log
+panic.log
+
+# --- Arquivos de IDE ---
+.idea/
+.vscode/
+*.swp

@@ -1,0 +1,21 @@
+Module
+  name: "mcr_name_fix"
+  description: "Corrige exibicao de nomes UTF-8 no OTClient"
+  author: "Equipe MCR"
+  sandboxed: true
+  @onLoad: |
+    local oldSetName = Creature.setName
+    function Creature:setName(name)
+        -- Converte UTF-8 para Latin1 para exibicao
+        local fixed = name:gsub("[%z\1-\127\194-\244][\128-\191]*", function(c)
+            -- Tenta converter de UTF-8 para Latin1
+            if #c == 2 and c:byte(1) == 0xC3 then
+                return string.char(c:byte(2) - 64)
+            elseif #c == 2 and c:byte(1) == 0xC2 then
+                return string.char(c:byte(2))
+            end
+            return c
+        end)
+        oldSetName(self, fixed)
+    end
+    print(">>> [MCR] Correcao de nomes UTF-8 ativada.")

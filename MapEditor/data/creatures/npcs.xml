@@ -1,0 +1,4 @@
+<?xml version="1.0"?>
+<npcs>
+	<npc name="Oraculo" looktype="114" lookitem="0" lookaddon="0" lookhead="0" lookbody="0" looklegs="0" lookfeet="0" />
+</npcs>

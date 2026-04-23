@@ -1,0 +1,25 @@
+# .gitignore na raiz do ProjetoMCR/
+
+# --- Arquivos de Sistema Operacional ---
+.DS_Store
+Thumbs.db
+
+# --- Arquivos de IDE ---
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# --- Backups e Dados Sensíveis ---
+/backup/
+*.sql
+*.gz
+*.log
+.env
+secrets/
+
+# --- Arquivos do MyAAC (se aplicável) ---
+MyAAC/config.local.php
+MyAAC/cache/
+MyAAC/vendor/
+MyAAC/install/

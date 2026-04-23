@@ -1,0 +1,6 @@
+Module
+  name: game_toast
+  description: Notificações toast
+  author: MCR
+  version: 1.0.0
+  sandboxed: true

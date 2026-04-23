@@ -1,0 +1,111 @@
+MainWindow
+  id: registerWindow
+  text: "Criar Conta - MCR"
+  size: 300 300
+  modal: true
+  center: true
+
+  Label
+    id: accountLabel
+    text: "Nome da Conta:"
+    anchors.top: parent.top
+    anchors.left: parent.left
+    margin-top: 10
+    margin-left: 10
+
+  TextEdit
+    id: accountName
+    anchors.top: prev.bottom
+    anchors.left: parent.left
+    anchors.right: parent.right
+    margin-top: 2
+    margin-left: 10
+    margin-right: 10
+    height: 22
+
+  Label
+    id: emailLabel
+    text: "E-mail:"
+    anchors.top: prev.bottom
+    anchors.left: parent.left
+    margin-top: 10
+    margin-left: 10
+
+  TextEdit
+    id: email
+    anchors.top: prev.bottom
+    anchors.left: parent.left
+    anchors.right: parent.right
+    margin-top: 2
+    margin-left: 10
+    margin-right: 10
+    height: 22
+
+  Label
+    id: passwordLabel
+    text: "Senha:"
+    anchors.top: prev.bottom
+    anchors.left: parent.left
+    margin-top: 10
+    margin-left: 10
+
+  TextEdit
+    id: password
+    anchors.top: prev.bottom
+    anchors.left: parent.left
+    anchors.right: parent.right
+    margin-top: 2
+    margin-left: 10
+    margin-right: 10
+    height: 22
+    password: true
+
+  Label
+    id: confirmLabel
+    text: "Confirmar Senha:"
+    anchors.top: prev.bottom
+    anchors.left: parent.left
+    margin-top: 10
+    margin-left: 10
+
+  TextEdit
+    id: confirmPassword
+    anchors.top: prev.bottom
+    anchors.left: parent.left
+    anchors.right: parent.right
+    margin-top: 2
+    margin-left: 10
+    margin-right: 10
+    height: 22
+    password: true
+
+  Label
+    id: statusLabel
+    anchors.top: prev.bottom
+    anchors.left: parent.left
+    anchors.right: parent.right
+    margin-top: 10
+    margin-left: 10
+    margin-right: 10
+    text-align: center
+    color: #ffcc00
+    text: ""
+
+  Button
+    id: registerButton
+    text: "Criar Conta"
+    anchors.top: prev.bottom
+    anchors.left: parent.left
+    margin-top: 15
+    margin-left: 20
+    width: 120
+    height: 24
+
+  Button
+    id: cancelButton
+    text: "Cancelar"
+    anchors.top: registerButton.top
+    anchors.left: registerButton.right
+    margin-left: 10
+    width: 120
+    height: 24

@@ -1,0 +1,6 @@
+Module
+  name: test_mod
+  description: Módulo de teste
+  author: MCR
+  version: 1.0.0
+  sandboxed: true

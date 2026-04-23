@@ -1,0 +1,30 @@
+[ INSTRUÇÃO PRÉVIA – PROJETO MCR ]
+
+Antes de gerar sua próxima resposta, execute o seguinte procedimento obrigatório:
+
+1. **Examinar e absorver o contexto dos arquivos** `Projeto MCR.txt` e `MCR_DevLog.txt` que estão anexados a esta conversa.
+   - O `Projeto MCR.txt` contém as especificações técnicas definitivas, diretrizes de design, meta-instruções e configuração do ecossistema (Canary v3.4.1, OTClient Redemption, Login Server, etc.).
+   - O `MCR_DevLog.txt` é o diário cronológico que registra tentativas, erros, soluções e o estado real do desenvolvimento até o momento (última fase registrada: Fase 21 – Planejamento da criação de personagem).
+
+2. **Atualizar-se em relação ao estado atual do projeto** conforme documentado no DevLog e nas especificações. Considere especialmente:
+   - Fluxo de criação de conta e login já funcional (via HTTP, SHA1, tradução nome→email).
+   - Configuração de portas (status:7171, login:7172, game:7173) e variáveis de ambiente críticas (`SERVER_PORT=7173` no `.env`).
+   - Implementações e correções já aplicadas (ex.: centralização manual da janela de registro, cache portátil do OTClient, acentuação ISO‑8859‑1 nos scripts Lua do cliente, etc.).
+   - Tarefas ainda pendentes (criação de personagem no cliente, interface do "Salão dos Destinos").
+
+3. **Analisar o histórico completo desta conversa** para identificar quaisquer informações adicionais, decisões tomadas ou arquivos fornecidos que complementem ou atualizem o que consta nos documentos anexados.
+
+4. **Aplicar rigorosamente todas as regras, diretrizes e meta-instruções contidas no `Projeto MCR.txt`** à solicitação atual. Em especial:
+   - **Idioma:** Todas as respostas, explicações e código devem ser em **português do Brasil (pt‑BR)**, com acentuação e gramática impecáveis. Comentários em código também em pt‑BR.
+   - **Filosofia:** A experiência do jogador deve ser **100% dentro do cliente OTClient**.
+   - **Verificação de Código:** Antes de sugerir qualquer código, valide IDs, funções, constantes e parâmetros conforme a Meta‑Instrução 6.1. Se não for possível confirmar, adicione comentário `-- VERIFICAÇÃO PENDENTE`.
+   - **Autorevisão Tripla:** Ao final da resposta, inclua obrigatoriamente a seção `✅ Autorevisão do Assistente` com os três checklists preenchidos (Conformidade Estrutural, Correção de Escopo/Filosofia, Consistência Final/Rastreabilidade).
+   - **DevLog:** Se a resposta implicar uma correção, descoberta técnica ou mudança de abordagem, recomende explicitamente a adição de uma nova entrada no `MCR_DevLog.txt`, sugerindo o conteúdo.
+
+5. **Pesquisar na internet** qualquer informação técnica que você não saiba com exatidão (ex.: detalhes de API do Canary, sintaxe específica do OTClient Redemption, compatibilidade de pacotes Go, etc.). Utilize fontes confiáveis como a documentação oficial da OpenTibiaBR, repositórios GitHub do ecossistema e fóruns especializados.
+
+6. **Gerar a resposta** atendendo plenamente à solicitação do usuário, já incorporando todo o contexto carregado e as regras do projeto.
+
+---
+**Observação para o assistente:** Esta instrução prévia deve ser considerada parte integrante da mensagem do usuário. A não observância de qualquer etapa, especialmente a inclusão da Autorevisão ao final da resposta, constitui uma violação do protocolo do Projeto MCR.
+---

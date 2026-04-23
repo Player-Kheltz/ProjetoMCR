@@ -1,0 +1,10 @@
+Module
+  name: "mcr_encoding_fix"
+  description: "Correcao de encoding UTF-8 para Projeto MCR"
+  author: "Equipe MCR"
+  sandboxed: true
+  @onLoad: |
+    if g_app then
+        g_app.setDefaultEncoding("UTF-8")
+        print(">>> [MCR] Encoding definido como UTF-8.")
+    end

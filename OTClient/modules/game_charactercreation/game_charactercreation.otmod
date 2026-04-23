@@ -1,0 +1,13 @@
+Module
+  name: "game_charactercreation"
+  description: "Criação imersiva de personagem no Salão dos Destinos"
+  author: "Equipe MCR"
+  sandboxed: true
+  scripts:
+    - "charactercreation.lua"
+  @onLoad: |
+    local cc = require('game_charactercreation/charactercreation')
+    cc.init()
+  @onUnload: |
+    local cc = require('game_charactercreation/charactercreation')
+    cc.terminate()
