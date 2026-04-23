@@ -1384,3 +1384,38 @@ PRÓXIMOS PASSOS:
 - Utilizar a nova versão do documento como referência primária.
 - Implementar as quests utilizando o padrão de cores definido.
 ================================================================================
+
+================================================================================
+FASE 31 – DEFINIÇÃO DO MODELO DE ACCOUNT MANAGER "ALMA" E REMOÇÃO DE E‑MAIL
+Data: 23/04/2026
+================================================================================
+
+CONTEXTO:
+- O projeto é um hobby com acesso restrito, portanto sistemas complexos de e‑mail
+  não são necessários.
+- A experiência desejada é semelhante aos OTServs antigos, onde o jogador é recebido
+  por um personagem dummy (Account Manager) que gerencia a conta.
+
+AÇÕES REALIZADAS (ÂMBITO DA DOCUMENTAÇÃO):
+1. Remoção de todas as referências a e‑mail, endpoints de recuperação de senha por
+   e‑mail e validações de e‑mail da documentação.
+2. Definição do personagem "Alma" como o Account Manager oficial do projeto. Toda
+   conta terá um personagem "Alma" para gerenciamento (criar personagem, alterar
+   senha, deletar personagem).
+3. Atualização do fluxo de criação de conta: o botão "Criar Conta" é um placeholder
+   e será removido. O jogador, ao tentar entrar sem credenciais, será automaticamente
+   redirecionado para uma conta recém-criada com o personagem "Alma".
+4. Inclusão da escolha de sexo no diálogo de criação de personagem com o Oráculo.
+5. Atualização da documentação do Login Server para refletir a ausência de e‑mail.
+
+RESULTADO:
+- A documentação agora reflete com precisão a visão de futuro do projeto, eliminando
+  complexidades desnecessárias e reforçando a experiência 100% no cliente.
+- O papel de "Alma" como Account Manager está claramente definido.
+
+PRÓXIMOS PASSOS:
+- Implementar a criação automática de conta e personagem "Alma" no primeiro acesso.
+- Remover o botão "Criar Conta" da tela de login do OTClient.
+- Expandir o script do Oráculo para incluir opções administrativas (alterar senha,
+  deletar personagem).
+================================================================================
