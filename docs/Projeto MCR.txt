@@ -158,6 +158,10 @@ Legenda das Variáveis:
 - SERVER_LOCATION: Localização geográfica exibida no cliente.
 - VOCATIONS: Lista de IDs das vocações disponíveis.
 
+**Nota:** O arquivo `.env` com as credenciais reais **não é versionado** (listado no `.gitignore`).
+Um template de exemplo está disponível em `LoginServer/.env.example` com placeholders
+para orientar a configuração local.
+
 2.3. Site / Website (AAC - Automatic Account Creator) – Componente Opcional
 O AAC é um portal web que pode ser disponibilizado como um canal complementar para gerenciamento de contas, visualização de rankings e notícias. Em estrita conformidade com o pilar "Jornada 100% no Cliente", o site não é um requisito para jogar. A experiência primária do jogador deve estar integralmente contida no OTClient.
 
