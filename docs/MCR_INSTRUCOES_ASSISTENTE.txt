@@ -1,0 +1,88 @@
+================================================================================
+PROJETO MCR – INSTRUÇÕES DE CONTEXTO PARA O ASSISTENTE (LEIA PRIMEIRO)
+Versão: 1.0
+Data: 23/04/2026
+================================================================================
+
+🎯 OBJETIVO DESTE ARQUIVO
+Este documento não contém especificações técnicas ou código. Ele contém as **regras
+de conduta e o protocolo de leitura** que você, assistente, DEVE seguir ao interagir
+com os arquivos do Projeto MCR.
+
+⚠️ REGRA DE OURO: Você está proibido de gerar código ou sugerir implementações
+   antes de seguir o fluxo de leitura e validação descrito abaixo.
+
+================================================================================
+📚 HIERARQUIA DE LEITURA OBRIGATÓRIA
+================================================================================
+
+Sempre que o usuário solicitar algo relacionado ao Projeto MCR, você DEVE processar
+os arquivos na seguinte ordem:
+
+1. PRIMEIRO: Leia e compreenda "Projeto MCR.txt"
+   - Este é o documento CANÔNICO. Ele define O QUE É o projeto.
+   - Contém a filosofia (100% Cliente, Imersão pt-BR, Fantasia).
+   - Contém as configurações exatas de portas, bancos e flags (OTCFeatures).
+   - Contém as regras de UI (Chat com Cores vs Janelas Modais).
+   - **AÇÃO:** Sua mente deve ser formatada por este arquivo. Toda sugestão futura
+     deve ser validada contra as regras estabelecidas aqui.
+
+2. SEGUNDO: Consulte "MCR_DevLog.txt" (Obrigatório para Abordagens Técnicas)
+   - Este é o documento HISTÓRICO. Ele define COMO as coisas foram feitas (ou falharam).
+   - **FUNÇÃO CRÍTICA:** Antes de sugerir uma solução técnica, VERIFIQUE no DevLog se
+     essa abordagem já foi tentada e falhou.
+     - Exemplo: Não sugira usar `setModal(true)` em Lua. O DevLog (Fase 11) prova que não funciona.
+     - Exemplo: Não sugira mudar a codificação do servidor para UTF-8 puro para acentos. O DevLog (Fase 22.3) prova que a solução é `error_code` no JSON.
+   - **AÇÃO:** Use o DevLog como seu "filtro de erros". Se você está prestes a sugerir algo que o DevLog diz que deu errado, PARE e mude a estratégia.
+
+================================================================================
+📋 PROTOCOLO DE RESPOSTA (O QUE VOCÊ DEVE ENTREGAR)
+================================================================================
+
+Após ler os documentos acima, toda resposta sua deve conter:
+
+1. **Seção de Código ou Sugestão:** A solução proposta, seguindo estritamente:
+   - Idioma: Português (comentários e strings).
+   - Caminhos de arquivo: Exatos como estão na documentação (ex: `modules/client_entergame/`).
+
+2. **Seção de Verificações Pendentes:** (Baseado na Seção 6.1 do Projeto MCR.txt)
+   Se você sugerir um ID de item, um Opcode ou uma função que não conseguiu confirmar
+   nos fontes oficiais, DEVE listar:
+   - `-- VERIFICAÇÃO PENDENTE: Não foi possível confirmar [Elemento]. Testar manualmente.`
+
+3. **Seção: 📤 Como Atualizar o Repositório Git com Estas Mudanças**
+   - Inclua os comandos `git add`, `git commit` e `git push` apropriados.
+
+4. **Seção: ✅ Autorevisão do Assistente**
+   - Você DEVE incluir o checklist de Revisão Tripla (Primeira, Segunda, Terceira Revisão)
+     conforme definido na Seção 6.9 do **Projeto MCR.txt**.
+   - Todos os itens do checklist devem estar marcados como `[x]`.
+   - **PENALIDADE:** Uma resposta sem esta seção de Autorevisão é considerada INVÁLIDA para o Projeto MCR.
+
+================================================================================
+🚫 REGRAS INEGOCIÁVEIS (LEMBRETES RÁPIDOS)
+================================================================================
+
+Para evitar que você se desvie, memorize estes pilares extraídos da documentação:
+
+1. **Jornada 100% no Cliente:** NUNCA sugira abrir navegador web para criar conta, recuperar senha ou ver ranking. TUDO é dentro do OTClient (via Account Manager "Alma" ou HTTP Requests internos).
+2. **Idioma PT-BR:** Código em inglês (variaveis), mas COMENTÁRIOS e STRINGS em Português.
+3. **OTUI Syntax:** NUNCA use `{ }` para aninhar estilos. NUNCA use `--` para comentários. Use apenas ESPAÇOS para indentação.
+4. **Acentuação no Cliente:** Scripts Lua carregados via `dofile` no OTClient DEVEM ser salvos como **ISO-8859-1** (Latin-1). Não insista em UTF-8 para esses arquivos específicos.
+5. **Portas:** Servidor de Jogo (Canary) é **7173**. Login Server HTTP é **8080**. NUNCA confunda isso (Erro 10060 documentado no DevLog).
+
+================================================================================
+📝 MODELO DE PENSAMENTO (EXECUÇÃO INTERNA)
+================================================================================
+
+Antes de escrever a resposta, faça a si mesmo as seguintes perguntas em silêncio:
+
+1. *"O que estou sugerindo está de acordo com o pilar 100% Cliente do **Projeto MCR.txt**?"*
+2. *"Esta abordagem técnica já foi testada e descartada na **Fase X do MCR_DevLog.txt**?"*
+3. *"Estou usando um método de UI proibido (ex: ModalWindow para Quest) em violação à Seção 5.5 do **Projeto MCR.txt**?"*
+
+Se a resposta for "Sim" para qualquer violação, **NÃO ENVIE A RESPOSTA**. Refaça sua sugestão.
+
+================================================================================
+FIM DAS INSTRUÇÕES
+================================================================================

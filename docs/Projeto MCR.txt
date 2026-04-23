@@ -7,6 +7,9 @@ Banco de Dados: BancoServer
 Repositório Oficial do Projeto: https://github.com/Player-Kheltz/ProjetoMCR
 Idioma Oficial do Projeto: Português do Brasil (pt‑BR) – Aplicado a todo texto, mensagem, comentário e documentação.
 
+
+** OBSERVAÇÃO IMPORTANTE - o assistente DEVE verificar os arquivos RAW do git (Projeto MCR) para ter acesso ao conteudo **
+
 📎 DOCUMENTO AUXILIAR OBRIGATÓRIO: MCR_DevLog.txt
 Este arquivo de especificações deve ser sempre acompanhado pelo diário de desenvolvimento
 "MCR_DevLog.txt", que registra cronologicamente todas as tentativas, erros, soluções e
@@ -68,7 +71,11 @@ A configuração do Projeto MCR para o Protocolo 15.00 exige uma infraestrutura 
 Arquivo / Local	Configuração	Objetivo e Justificativa
 Código‑Fonte	Utilizar o repositório oficial: https://github.com/opentibiabr/canary – tag v3.4.1	Garante suporte nativo ao protocolo 15.00, sistemas modernos (loja, recompensa diária, imbuements) e compatibilidade total com UTF‑8.
 Compilação	Seguir as instruções do repositório (vcpkg, CMake, dependências listadas em README.md)	O Canary utiliza bibliotecas modernas (Boost, Lua 5.4, MariaDB Connector).
-config.lua	mysqlDatabase = "BancoServer"	Define o nome do banco de dados padrão do projeto.
+config.lua	mysqlHost = "127.0.0.1"
+config.lua	mysqlUser = "root"
+config.lua	mysqlPass = "<Senha>" (não informada por questão de segurança, arquivo com acesso publico no Git)
+config.lua	mysqlDatabase = "BancoServer" Define o nome do banco de dados padrão do projeto.
+config.lua	mysqlPort = 3306
 config.lua	mysqlInitCommand = "SET NAMES 'utf8mb4'"	Força a conexão com o MySQL a utilizar UTF‑8 completo, garantindo que nomes com acentos sejam armazenados e recuperados corretamente.
 config.lua	Adicionar/ajustar a tabela OTCFEATURES conforme a Seção 2.1.1	Informa ao cliente OTClient quais recursos estendidos são suportados.
 config.lua	passwordType = "sha1"	Define o algoritmo de hashing para senhas. SHA1 foi adotado para alinhamento prático com o Login Server e por sua simplicidade de implementação, garantindo que a criação de contas e autenticação funcionem sem quebras.
@@ -131,7 +138,7 @@ MYSQL_DBNAME=BancoServer
 MYSQL_HOST=127.0.0.1
 MYSQL_PORT=3306
 MYSQL_USER=root
-MYSQL_PASS=suasenha
+MYSQL_PASS=<Senha> (não informada por questão de segurança, arquivo com acesso publico no Git)
 
 # Configurações do Login Server
 LOGIN_IP=0.0.0.0
@@ -426,6 +433,14 @@ Checklist de Verificação:
 - O servidor foi reiniciado após as alterações?
 
 ⚠️ Aviso de Segurança: Nunca delete o arquivo MCR-npc.xml nem o modifique sem backup. Uma tag mal formada pode impedir o carregamento de todos os NPCs do mundo.
+⚠️ IMPORTANTE – XAMPP e MariaDB:
+O XAMPP atualmente utiliza MariaDB em vez de MySQL puro. Para configurar a senha
+do root, utilize o comando:
+  SET PASSWORD FOR 'root'@'localhost' = PASSWORD('<Senha>'); 
+
+Não utilize a sintaxe "ALTER USER ... IDENTIFIED WITH mysql_native_password",
+que é específica do MySQL e não funciona no MariaDB.
+
 
 2.11. Gerenciamento do Código-Fonte (Git) e Colaboração com Assistente
 
@@ -1248,6 +1263,10 @@ O hash de senha utilizado é SHA1, garantindo máxima compatibilidade entre Logi
 A tabela accounts utilizada pelo Login Server deve ser a mesma do Canary (BancoServer.accounts). O campo email é definido como string vazia.
 
 Para garantir a exibição correta de mensagens acentuadas no OTClient sem depender da codificação do backend, adote o padrão de códigos de erro (error_code). O servidor retorna um código padronizado (ex.: "account_name_taken"), e o cliente mapeia esse código para uma string em português definida localmente no script Lua (salvo como ISO‑8859‑1).
+
+Configuração do phpMyAdmin após definir senha no MySQL/MariaDB:
+  $cfg['Servers'][$i]['password'] = '<Senha>'; (não informada por questão de segurança, arquivo com acesso publico no Git)
+  $cfg['Servers'][$i]['auth_type'] = 'config';
 
 6.12. Meta‑Instrução de Sincronização Obrigatória com MCR_DevLog.txt
 🔴 REGRA DE MANUTENÇÃO DA DOCUMENTAÇÃO

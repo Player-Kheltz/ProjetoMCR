@@ -1419,3 +1419,94 @@ PRÓXIMOS PASSOS:
 - Expandir o script do Oráculo para incluir opções administrativas (alterar senha,
   deletar personagem).
 ================================================================================
+
+================================================================================
+FASE 32 – CONFIGURAÇÃO DEFINITIVA DO BANCO DE DADOS (UTF8MB4)
+Data: 23/04/2026
+================================================================================
+
+CONTEXTO:
+Ao recriar o banco de dados `BancoServer` do zero, foi identificada a necessidade
+de configurar explicitamente a codificação para `utf8mb4` a fim de garantir suporte
+completo a caracteres acentuados (incluindo `ã`, `õ`, `ç`, etc.) e evitar futuros
+problemas de corrupção visual.
+
+AÇÕES REALIZADAS:
+1. Substituição do arquivo `my.ini` do XAMPP por uma versão que força `utf8mb4`
+   como codificação padrão em todas as camadas ([client], [mysql], [mysqld]).
+2. Reinicialização do serviço MySQL para aplicar as mudanças.
+3. Recriação do banco `BancoServer` com o comando:
+   `CREATE DATABASE BancoServer CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;`
+
+RESULTADO:
+- O banco de dados está preparado para armazenar e comparar corretamente todos
+  os caracteres do português do Brasil.
+- A integridade dos nomes de personagens, NPCs e itens com acentuação está garantida.
+- Compatibilidade total com o sistema de validação de nomes implementado na Fase 23.2.
+
+================================================================================
+
+================================================================================
+FASE 33 – REINSTALAÇÃO COMPLETA DO XAMPP E CONFIGURAÇÃO DO BANCO DE DADOS
+Data: 23/04/2026
+================================================================================
+
+CONTEXTO:
+O servidor Canary apresentava erros consecutivos de conexão com o banco de dados:
+- Primeiro: "Access denied for user 'root'@'localhost' (using password: YES)"
+- Depois: "Can't connect to server on '127.0.0.1' (10061)"
+
+Após diagnóstico, optou-se por uma reinstalação completa do XAMPP para garantir
+um ambiente limpo e configurado corretamente desde o início.
+
+AÇÕES REALIZADAS:
+
+1. DESINSTALAÇÃO COMPLETA:
+   - Remoção da pasta D:\Programas\Xampp
+   - Remoção de eventuais resíduos em C:\xampp
+   - Remoção dos serviços Windows "XAMPP MySQL" e "XAMPP Apache"
+
+2. INSTALAÇÃO LIMPA DO XAMPP:
+   - Versão: XAMPP 8.2.12 (PHP 8.2)
+   - Local: D:\Programas\Xampp
+   - Componentes instalados: apenas MySQL e phpMyAdmin
+
+3. CONFIGURAÇÃO DO my.ini (UTF-8 Completo):
+   - character-set-server = utf8mb4
+   - collation-server = utf8mb4_unicode_ci
+   - skip-character-set-client-handshake
+   - init-connect = 'SET NAMES utf8mb4 COLLATE utf8mb4_unicode_ci'
+
+4. CONFIGURAÇÃO DA SENHA NO MARIADB (XAMPP usa MariaDB):
+   - Comando correto: SET PASSWORD FOR 'root'@'localhost' = PASSWORD('<Senha>');
+   - Diferente do MySQL puro, o MariaDB não suporta a sintaxe "ALTER USER ... IDENTIFIED WITH"
+
+5. CONFIGURAÇÃO DO phpMyAdmin:
+   - Arquivo: D:\Programas\Xampp\phpMyAdmin\config.inc.php
+   - Adicionado: $cfg['Servers'][$i]['password'] = '<Senha>';
+   - Alterado: $cfg['Servers'][$i]['auth_type'] = 'config';
+
+6. CRIAÇÃO DO BANCO DE DADOS:
+   - CREATE DATABASE BancoServer CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+
+PROBLEMAS ENCONTRADOS E SOLUÇÕES:
+
+| Problema | Causa | Solução |
+|----------|-------|---------|
+| ALTER USER não funcionou | XAMPP usa MariaDB, não MySQL puro | Usar SET PASSWORD FOR 'root'@'localhost' = PASSWORD('senha') |
+| phpMyAdmin "using password: NO" | config.inc.php não tinha a senha configurada | Adicionar 'password' => '<Senha>' no arquivo |
+| Canary não conectava (10061) | MySQL não estava rodando | Iniciar o serviço no XAMPP Control Panel |
+
+LIÇÕES APRENDIDAS:
+- O XAMPP atual utiliza MariaDB, que tem sintaxe própria para alteração de senha
+- O phpMyAdmin não herda automaticamente a senha do MySQL; precisa ser configurado manualmente
+- O Canary funciona perfeitamente com MariaDB, desde que a senha esteja correta no config.lua
+- A configuração utf8mb4_unicode_ci é superior à utf8mb4_general_ci para o português brasileiro
+
+RESULTADO:
+✅ MySQL/MariaDB rodando com senha <Senha>
+✅ Banco BancoServer criado com encoding correto
+✅ phpMyAdmin acessível sem erros
+✅ Canary consegue conectar ao banco de dados
+
+================================================================================
