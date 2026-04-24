@@ -1441,4 +1441,42 @@ Protocolo de Uso:
   perguntando se deseja atualizar o repositório, mas sem rejeitar automaticamente
   a solicitação original.
 
+  6.14. Melhoria Contínua da Documentação e Aprendizado com Erros
+
+⚠️ DEVER PROATIVO DO ASSISTENTE
+
+O assistente não deve ser um mero resolvedor de tarefas pontuais. Ele é corresponsável
+pela evolução da base de conhecimento do Projeto MCR. Para tanto, ao longo de cada
+interação, o assistente DEVE:
+
+1. **Monitorar os próprios erros:** Se um comando falhou, um caminho foi mal interpretado,
+   uma sugestão se mostrou inviável ou um problema se repetiu mais de uma vez, isso é um
+   sinal claro de que a documentação pode estar incompleta ou de que o assistente está
+   preso em um padrão ineficaz.
+
+2. **Investigar a causa raiz:** Em vez de apenas aplicar uma correção superficial, o
+   assistente deve se perguntar: *"Por que isso aconteceu? Faltou informação em qual
+   documento? O Projeto MCR.txt está omisso? O DevLog registra essa armadilha? As
+   Instruções do Assistente deixam alguma margem para dúvida?"*
+
+3. **Sugerir atualizações documentais:** Sempre que um aprendizado relevante for
+   identificado — uma nova lição técnica, um erro frequente, uma melhoria de fluxo —
+   o assistente DEVE propor explicitamente:
+   - Adições ou correções no **Projeto MCR.txt**.
+   - Uma nova entrada no **MCR_DevLog.txt** documentando o ocorrido.
+   - Ajustes nas **MCR_INSTRUCOES_ASSISTENTE.txt** para evitar recorrências.
+
+4. **Evitar loops de ineficácia:** Se o mesmo tipo de problema aparece repetidamente
+   (ex.: comandos Git com sintaxe incorreta, acentuação quebrada, confusão de portas),
+   o assistente deve reconhecer que a solução não está sendo efetiva e automaticamente
+   revisitar os pontos acima, em vez de continuar aplicando remendos.
+
+Exemplo concreto: na Fase 36, descobriu-se que comandos Git com barra invertida falham
+no PowerShell. O assistente aprendeu a usar aspas duplas e propôs a adição dessa nota
+na seção 2.11.3 do Projeto MCR.txt e nas Instruções do Assistente. Esse ciclo
+virtuoso deve se repetir para qualquer aprendizado significativo.
+
+Resultado esperado: documentação cada vez mais robusta, assistente cada vez mais
+eficiente e prevenção ativa de erros já conhecidos.
+
 📎 Documento auxiliar obrigatório: MCR_DevLog.txt (diário de desenvolvimento).

@@ -1648,3 +1648,27 @@ RESULTADO:
 - Assistente passa a usar o RAW como ferramenta de compreensão, sem o risco de
   rejeitar automaticamente instruções válidas por base em código desatualizado.
 - Documentação alinhada com a realidade de desenvolvimento iterativo e colaborativo.
+
+================================================================================
+FASE 37 – FORMALIZAÇÃO DA MELHORIA CONTÍNUA DA DOCUMENTAÇÃO
+Data: 23/04/2026 (noite)
+================================================================================
+
+CONTEXTO:
+- Em interações anteriores, o assistente cometia erros recorrentes (ex.: sintaxe Git
+  no PowerShell, confusão de portas) que só eram corrigidos quando o usuário os
+  apontava explicitamente.
+- Faltava uma diretriz que obrigasse o assistente a aprender com esses episódios e
+  propor ativamente melhorias nos próprios documentos de governança.
+
+AÇÕES REALIZADAS (ÂMBITO DA DOCUMENTAÇÃO):
+1. Adicionada a seção 6.14 (Melhoria Contínua da Documentação e Aprendizado com Erros)
+   no `Projeto MCR.txt`.
+2. A seção estabelece o dever do assistente de monitorar erros, investigar causas raiz,
+   sugerir atualizações nos três documentos principais e evitar loops de ineficácia.
+
+RESULTADO:
+- O ciclo de feedback entre a prática e a documentação foi fechado.
+- O assistente passa a ser um agente ativo na evolução do conhecimento do projeto,
+   reduzindo a carga sobre o desenvolvedor humano.
+- Espera-se uma curva de aprendizado mais acentuada e menos repetição de falhas.
