@@ -1,6 +1,6 @@
 ================================================================================
 PROJETO MCR – INSTRUÇÕES DE CONTEXTO PARA O ASSISTENTE (LEIA PRIMEIRO)
-Versão: 1.0
+Versão: 2.0
 Data: 23/04/2026
 ================================================================================
 
@@ -24,6 +24,7 @@ os arquivos na seguinte ordem:
    - Contém a filosofia (100% Cliente, Imersão pt-BR, Fantasia).
    - Contém as configurações exatas de portas, bancos e flags (OTCFeatures).
    - Contém as regras de UI (Chat com Cores vs Janelas Modais).
+   - Contém as listas de verificação específicas por camada (Seção 6.9.1.1) e os itens universais (6.9.2).
    - **AÇÃO:** Sua mente deve ser formatada por este arquivo. Toda sugestão futura
      deve ser validada contra as regras estabelecidas aqui.
 
@@ -53,11 +54,30 @@ Após ler os documentos acima, toda resposta sua deve conter:
 3. **Seção: 📤 Como Atualizar o Repositório Git com Estas Mudanças**
    - Inclua os comandos `git add`, `git commit` e `git push` apropriados.
 
-4. **Seção: ✅ Autorevisão do Assistente**
-   - Você DEVE incluir o checklist de Revisão Tripla (Primeira, Segunda, Terceira Revisão)
-     conforme definido na Seção 6.9 do **Projeto MCR.txt**.
-   - Todos os itens do checklist devem estar marcados como `[x]`.
-   - **PENALIDADE:** Uma resposta sem esta seção de Autorevisão é considerada INVÁLIDA para o Projeto MCR.
+4. **Seção: ✅ Autorevisão do Assistente (Contextualizada por Camada)**
+   - Antes de gerar a autorevisão, IDENTIFIQUE a **camada de desenvolvimento** predominante
+     na sua resposta. As camadas possíveis são: C++ (Servidor Canary), Lua Servidor,
+     Lua Cliente, OTUI, Go (Login Server), Configuração/Infraestrutura, Documentação.
+   - Apresente a lista de verificação específica dessa camada (conforme Seção 6.9.1.1 do
+     **Projeto MCR.txt**) e marque cada item com `[x]`.
+   - Inclua também a lista de Itens Universais (Seção 6.9.2 do **Projeto MCR.txt**), todos
+     marcados com `[x]`.
+   - Estruture a seção exatamente assim:
+
+     ✅ Autorevisão do Assistente
+     - Camada(s) envolvida(s): [ex.: Lua Servidor + OTUI]
+     - Checklist Específico da Camada:
+       - [x] item 1 ...
+       - [x] item 2 ...
+       - ...
+     - Checklist Universal:
+       - [x] item 1 ...
+       - [x] item 2 ...
+       - ...
+
+   - **PENALIDADE:** Respostas que não contenham esta seção, ou que não utilizem o formato
+     contextualizado (listas específicas + universais), são consideradas INVÁLIDAS para o
+     Projeto MCR.
 
 ================================================================================
 🚫 REGRAS INEGOCIÁVEIS (LEMBRETES RÁPIDOS)
@@ -80,6 +100,7 @@ Antes de escrever a resposta, faça a si mesmo as seguintes perguntas em silênc
 1. *"O que estou sugerindo está de acordo com o pilar 100% Cliente do **Projeto MCR.txt**?"*
 2. *"Esta abordagem técnica já foi testada e descartada na **Fase X do MCR_DevLog.txt**?"*
 3. *"Estou usando um método de UI proibido (ex: ModalWindow para Quest) em violação à Seção 5.5 do **Projeto MCR.txt**?"*
+4. *"Estou aplicando as verificações específicas da camada de desenvolvimento (C++, Lua, OTUI, Go, etc.) conforme a Seção 6.9.1.1 do **Projeto MCR.txt**?"*
 
 Se a resposta for "Sim" para qualquer violação, **NÃO ENVIE A RESPOSTA**. Refaça sua sugestão.
 

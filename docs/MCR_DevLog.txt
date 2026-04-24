@@ -1576,3 +1576,43 @@ ARQUIVOS MODIFICADOS/CRIADOS NESTA FASE:
 - LoginServer/.env.example (criado como template)
 - .gitignore (atualizado com regras de segurança)
 - Histórico completo do repositório (reescrito pelo BFG)
+
+================================================================================
+FASE 35 – REFORMULAÇÃO DA AUTOREVISÃO CONTEXTUALIZADA POR CAMADA
+Data: 23/04/2026 (noite)
+================================================================================
+
+CONTEXTO:
+- A auto‑revisão genérica aplicada até o momento não diferenciava as especificidades
+  de cada camada de desenvolvimento (C++, Lua servidor, Lua cliente, OTUI, Go, etc.).
+- Isso podia levar a verificações pouco críticas ou irrelevantes para o contexto,
+  enfraquecendo a garantia de qualidade.
+- O objetivo era criar um protocolo de revisão tripla que se adaptasse automaticamente
+  ao tipo de artefato sendo produzido, mantendo os pilares do Projeto MCR.
+
+AÇÕES REALIZADAS (ÂMBITO DA DOCUMENTAÇÃO):
+1. Criação de listas de revisão específicas para cada camada:
+   - C++ (servidor Canary)
+   - Lua (servidor – NPCs, quests)
+   - Lua (cliente – módulos OTClient)
+   - OTUI (arquivos de interface)
+   - Go (Login Server)
+   - Configuração/Infraestrutura
+   - Documentação
+2. Definição de itens universais que se aplicam a qualquer contexto (idioma, 100%
+   cliente, ferramenta de UI, coerência narrativa, etc.).
+3. Reformulação da Seção 6.9 do `Projeto MCR.txt` com:
+   - Passo Zero: identificação da camada e carregamento das listas.
+   - Revisão tripla adaptativa: primeira revisão (conformidade técnica da camada),
+     segunda revisão (filosofia MCR), terceira revisão (consistência e rastreabilidade).
+   - Nova estrutura da seção de auto‑revisão obrigatória (`✅ Autorevisão do Assistente`),
+     que agora exibe a camada envolvida e os checklists específicos preenchidos.
+
+RESULTADO:
+- O assistente agora realiza verificações muito mais precisas e relevantes para cada
+  tipo de tarefa.
+- A qualidade das respostas e do código gerado tende a aumentar significativamente.
+- O `Projeto MCR.txt` foi atualizado com a nova Seção 6.9 (substituindo integralmente
+  a versão anterior).
+
+================================================================================

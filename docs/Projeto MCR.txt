@@ -1,4 +1,4 @@
-📜 PROJETO MCR – ESPECIFICAÇÕES AVANÇADAS (CONSOLIDADO ATÉ FASE 31)
+📜 PROJETO MCR – ESPECIFICAÇÕES AVANÇADAS (CONSOLIDADO ATÉ FASE 34)
 Base do Servidor: opentibiabr/canary (Canary - Version 3.4.1) – Protocolo 15.00
 Cliente Exclusivo: opentibiabr/otclient – Motor 2D otimizado (C++17, Lua) – Protocolo 15.00
 Editor de Mapas: opentibiabr/remeres-map-editor – Compatível com .otbm Canary (Protocolo 15.00)
@@ -1122,63 +1122,137 @@ Verifique se a acentuação está correta em todas as mensagens.
 
 Avalie a fluidez, a imersão narrativa e a segurança (Meta‑Instrução 6.7).
 
-6.9. Protocolo de Revisão Tripla e Autorevisão Obrigatória
-Antes de finalizar QUALQUER resposta relacionada ao projeto MCR — seja gerando código, sugerindo alterações ou explicando conceitos — o assistente ou desenvolvedor DEVE executar internamente o seguinte protocolo de revisão tripla, desenhado especificamente para as demandas do Projeto MCR. Além disso, a conclusão bem‑sucedida desse protocolo deve ser evidenciada na própria resposta, conforme descrito ao final desta seção.
+6.9. Protocolo de Revisão Tripla e Autorevisão Obrigatória (Contextualizada)
 
-6.9.1. Execução Interna da Revisão Tripla
-O processo de revisão consiste em três etapas sequenciais. Se qualquer não conformidade for identificada em qualquer uma das etapas, a resposta ou o código DEVE ser corrigido e o processo DEVE ser reiniciado a partir da Primeira Revisão. Somente após a conclusão bem‑sucedida das três revisões a resposta poderá ser entregue ou o código integrado ao projeto.
+Antes de finalizar QUALQUER resposta relacionada ao Projeto MCR, o assistente DEVE
+executar um protocolo de revisão tripla adaptado à **camada de desenvolvimento**
+envolvida na tarefa. A revisão genérica deu lugar a um exame crítico que varia
+conforme o tipo de artefato sendo produzido ou modificado (C++, Lua servidor, Lua
+cliente, OTUI, Go, etc.), sem jamais perder de vista os pilares permanentes do
+projeto (idioma pt‑BR, jornada 100% no cliente, consistência narrativa).
 
-Primeira Revisão – Conformidade Estrutural com o Projeto MCR
+6.9.1. Passo Zero – Identificação da Camada e Carregamento das Listas
 
-Localização pt‑BR: Todas as strings visíveis ao jogador, mensagens de sistema e comentários de código estão em português do Brasil com acentuação correta?
+Antes de iniciar a primeira revisão, o assistente deve:
 
-Recursos OTClient: A ferramenta escolhida para a interação (chat com cores, HUD, toast, janela modal) está de acordo com o Princípio de Escolha de Ferramenta (Seção 4.2)?
+- Determinar a camada predominante do código/sugestão:
+  • `src/` canary (C++) → Revisão de C++/Servidor
+  • `data/` scripts Lua do servidor → Revisão de Lua Servidor
+  • `modules/` Lua do OTClient (lógica) → Revisão de Lua Cliente
+  • arquivos `.otui` → Revisão de OTUI
+  • Login Server (Go) → Revisão de Go/API
+  • `config.lua`, `.env`, schema SQL → Revisão de Configuração/Infra
+  • `Projeto MCR.txt`, `MCR_DevLog.txt` → Revisão de Documentação
 
-Verificação de Código: Foi aplicada a Meta‑Instrução 6.1 (validação de IDs, funções, parâmetros)? IDs e storages estão dentro das faixas reservadas para o MCR?
+- Carregar mentalmente os itens da **Lista Específica** correspondente (abaixo),
+  combinando‑os com os **Itens Universais** (Seção 6.9.2) que se aplicam a qualquer
+  contexto.
 
-Banco de Dados: Foi utilizado o nome BancoServer em instruções de configuração ou conexão?
+6.9.1.1. Listas de Revisão Específicas por Camada
 
-Padrão de Comentários: Os comentários seguem o padrão da Seção 6.2 (cabeçalho descritivo, nomes em camelCase/PascalCase, ausência de números mágicos)?
+##### 🔧 C++ (Servidor Canary)
+- [ ] As strings visíveis ao jogador (logs, mensagens de erro) estão em pt‑BR e com acentuação correta (UTF‑8 com BOM)?
+- [ ] Comentários e nomes de funções auto‑documentáveis estão em pt‑BR?
+- [ ] A modificação mantém compatibilidade com o protocolo 15.00 e não quebra bindings Lua existentes?
+- [ ] Novos métodos expostos ao Lua (`registerMethod`, `registerClass`) seguem a convenção `minúsculas_com_underscore` e incluem validação de parâmetros?
+- [ ] Se a alteração envolve rede (ProtocolGame), os opcodes estendidos estão dentro das faixas reservadas (160‑255) e documentados?
+- [ ] Toda nova consulta SQL utiliza placeholders parametrizados (evitar concatenação)?
+- [ ] A compilação foi verificada (sem warnings novos) e a funcionalidade testada manualmente antes do commit?
 
-Segunda Revisão – Correção de Escopo e Filosofia do Projeto
+##### 🧩 Lua Servidor (NPCs, Quests, Sistemas)
+- [ ] Strings de diálogo e mensagens ao jogador estão em pt‑BR, com acentuação impecável?
+- [ ] Comentários do script estão em pt‑BR, seguindo o cabeçalho padrão MCR?
+- [ ] IDs de storages, itens e vocações foram validados (meta‑instrução 6.1) e estão dentro das faixas MCR?
+- [ ] O script utiliza `NpcUtils` para reconhecimento flexível de palavras‑chave e tratamento de gênero/vocação?
+- [ ] A interação respeita o SQH: usa chat com `{{#cores}}`, NUNCA `player:showModalWindow()` para progresso de missão?
+- [ ] Os dados enviados ao cliente via `sendExtendedOpcode` são validados e usam opcodes documentados (faixa 180‑199 ou 220‑255)?
+- [ ] A criação de um novo NPC foi acompanhada da respectiva entrada no arquivo `data/world/MCR-npc.xml`?
 
-Imersão e Fantasia: O tom das mensagens e a lógica proposta estão coerentes com o tema fantasioso e com a independência criativa do MCR (sem replicar lore oficial do Tibia)?
+##### 🧩 Lua Cliente (Módulos OTClient)
+- [ ] Scripts que exibem strings acentuadas estão salvos como **ISO‑8859‑1**?
+- [ ] Comentários e nomes de funções globais seguem o padrão pt‑BR (comentários) e PascalCase (funções)?
+- [ ] `g_ui.displayUI` e `g_ui.createWidget` são usados de forma compatível com a versão Redemption (sem `setModal`, `setSize(dupla)`, etc.)?
+- [ ] A comunicação com o servidor via `HTTP.post` ou `ProtocolGame.sendExtendedOpcode` trata erros de rede (callback `onError`)?
+- [ ] Listeners de opcodes estendidos verificam se o buffer não é nil antes de decodificar o JSON?
+- [ ] O módulo não conflita com módulos nativos (ex.: não duplicar `game_console` sem herdar o comportamento original)?
 
-Experiência no Cliente: A solução mantém toda a jornada do jogador dentro do OTClient, conforme a Meta‑Instrução 6.11? Não há redirecionamento para site ou ferramenta externa para ações essenciais?
+##### 🖼️ OTUI (Arquivos de Interface)
+- [ ] O arquivo não contém comentários `--` nem chaves `{ }`; a indentação usa exclusivamente espaços?
+- [ ] Widgets usam `text` (não `!text`); fontes são do catálogo oficial (`cipsoftFont`, `verdana-11px-rounded`, etc.)?
+- [ ] A hierarquia de widgets é plana (filhos diretos da `MainWindow`) para garantir `getChildById`?
+- [ ] Janelas modais estão com `modal: true` e `center: true` (ou centralização manual calculada)?
+- [ ] As strings da interface estão em pt‑BR e foram testadas com acentos (salvar arquivo .otui como UTF‑8 sem BOM)?
+- [ ] O layout não utiliza `HorizontalLayout`; a ancoragem é feita via `anchors` e margens?
 
-Uso de Janelas Modais: O uso de player:showModalWindow() está restrito estritamente a Loja, Banco ou confirmações críticas irreversíveis? Não está sendo usado para progresso de missão?
+##### 🐹 Go (Login Server)
+- [ ] Comentários e mensagens de erro/log estão em pt‑BR (código‑fonte)? (Exceção: names de campos JSON podem seguir o padrão `snake_case` inglês)
+- [ ] Todos os handlers retornam JSON com `Content-Type: application/json; charset=utf-8`?
+- [ ] Dados de entrada são sanitizados (Unicode NFC, trimming) antes de validação?
+- [ ] Senhas são manipuladas exclusivamente como hash SHA1; nunca logadas ou retornadas em respostas?
+- [ ] Novas rotas possuem `recover()` em caso de panic e registram o erro antes de responder 500?
+- [ ] Consultas ao banco utilizam parâmetros (`?`) e nunca concatenam strings do usuário?
+- [ ] O `error_code` retornado segue o padrão `snake_case` e é mapeado corretamente no cliente Lua?
 
-Segurança e Validação: As validações obrigatórias da Meta‑Instrução 6.3 (sanitização de entrada, validação de opcodes, prevenção de injeção SQL) foram implementadas ou explicitamente mencionadas?
+##### ⚙️ Configuração e Infraestrutura
+- [ ] Senhas reais **NUNCA** aparecem no texto; usar `<Senha>` ou `<senha>` como placeholder?
+- [ ] Portas mencionadas são exatamente: game 7173, login 7172, status 7171, HTTP 8080?
+- [ ] Ajustes em `config.lua` do Canary estão sincronizados com as flags OTCFEATURES esperadas pelo cliente?
+- [ ] Novas tabelas ou colunas no banco `BancoServer` são criadas com `CHARACTER SET utf8mb4`?
+- [ ] A adição de variáveis de ambiente (`LoginServer/.env`) é sempre acompanhada da atualização do `.env.example`?
 
-Robustez: O código está livre de "números mágicos" e loops potencialmente infinitos? A performance foi considerada (ex.: evitar iteração sobre Game.getPlayers() desnecessariamente)?
+##### 📄 Documentação (Projeto MCR.txt, DevLog)
+- [ ] Toda inserção de nova informação respeita o idioma pt‑BR e a formatação do documento existente?
+- [ ] Atualizações no DevLog seguem o formato cronológico: `[DATA] – TÍTULO DA FASE`, com `CONTEXTO`, `AÇÕES`, `RESULTADO`?
+- [ ] A seção 6.9.2 (autorevisão) é sempre incluída na resposta final, com todos os itens marcados?
+- [ ] Se a alteração documentada modifica um aspecto técnico já estabilizado, a seção correspondente no `Projeto MCR.txt` foi atualizada?
 
-Terceira Revisão – Consistência Final e Rastreabilidade (DevLog)
+6.9.2. Itens Universais (Aplicáveis a Qualquer Camada)
 
-Clareza e Prontidão: A resposta está clara, objetiva e pronta para ser implementada ou compreendida sem ambiguidades por outro membro da equipe?
+Estes verificadores devem ser sobrepostos à lista específica. Nenhuma resposta é
+considerada válida sem passar por todos eles.
 
-Verificações Pendentes: Se aplicável, o relatório de VERIFICAÇÕES PENDENTES foi incluído ao final da resposta, indicando exatamente o que precisa ser testado manualmente?
+- [ ] **Idioma e Localização:** Todo texto visível ao jogador e comentários estão em português do Brasil com acentuação correta (respeitando as exceções para arquivos Lua cliente salvos como ISO‑8859‑1 e para nomes de variáveis em inglês).
+- [ ] **Experiência 100% no Cliente:** A solução proposta não força o jogador a sair do OTClient para ações essenciais (criação de conta, recuperação de senha, progresso de missão, loja). O Account Manager "Alma" e a tela de login são os pontos de entrada.
+- [ ] **Ferramenta de UI Adequada:** A escolha de interação (chat com cores, HUD, toast, modal) está conforme o Catálogo (Seção 4.1) e o Princípio de Escolha (Seção 4.2). Janela modal apenas para Loja, Banco e confirmações críticas irreversíveis.
+- [ ] **Validação e Segurança:** Entradas do jogador são sanitizadas e validadas; não há injeção de código/SQL; storages e opcodes estão nas faixas MCR documentadas.
+- [ ] **Coerência Narrativa:** Diálogos e descrições de itens/missões mantêm o tom “Aventura Fantasiosa”, com personalização por sexo/vocação e uso de `NpcUtils` onde aplicável.
+- [ ] **Atualização do DevLog:** Se a resposta gerou uma correção, descoberta técnica ou decisão de design, ela exige uma nova entrada no `MCR_DevLog.txt` – e a resposta deve recomendar o texto da entrada.
+- [ ] **Atualização do Git:** A seção 📤 Como Atualizar o Repositório Git com Estas Mudanças é incluída sempre que houver criação/alteração de arquivos.
 
-Coerência Narrativa: Para interações com NPCs ou missões, os diálogos estão variados, personalizados por sexo/vocação, e atendem à Checklist SQH (Seção 5.6)?
+6.9.3. Execução da Revisão Tripla (Passo 1 a 3)
 
-Interatividade: A convenção de tags de cor {{#RRGGBB}}texto{{/}} para destaques foi aplicada corretamente?
+Com a camada identificada e as listas carregadas, o assistente realiza agora as três
+revisões sequenciais, porém substituindo os itens genéricos antigos pelos conjuntos
+acima.
 
-🔴 ATUALIZAÇÃO DO DEVLOG (OBRIGATÓRIO): O conteúdo desta resposta ou a implementação sugerida gera a necessidade de uma nova entrada no arquivo MCR_DevLog.txt?
-Exemplos que exigem entrada: Correção de um bug, descoberta de uma limitação técnica, decisão de alterar uma abordagem, implementação bem‑sucedida de um novo endpoint, ou mudança de codificação de arquivo.
-Ação: Se sim, o assistente DEVE:
+1. **Primeira Revisão – Conformidade Estrutural e Técnica da Camada**
+   Percorra a **Lista Específica** da camada (6.9.1.1) e marque cada item. Em
+   seguida, aplique os itens universais pertinentes (ex.: validação de IDs, segurança).
+   Se qualquer item falhar, corrija o artefato e reinicie esta etapa.
 
-Recomendar explicitamente a adição da entrada no MCR_DevLog.txt.
+2. **Segunda Revisão – Alinhamento com a Filosofia MCR**
+   Percorra os **Itens Universais** restantes (especialmente “Experiência 100% no
+   Cliente” e “Ferramenta de UI”). Verifique se a implementação respeita as
+   diretrizes de UX e a independência criativa do projeto. Em caso de desvio, ajuste
+   e volte ao início da segunda revisão.
 
-Sugerir o texto ou resumo da entrada a ser registrada.
+3. **Terceira Revisão – Consistência Final e Rastreabilidade**
+   Confira se a resposta está clara, sem ambiguidades, e se as verificações pendentes
+   foram explicitamente listadas como comentários `-- VERIFICAÇÃO PENDENTE`. Avalie
+   se a atualização do DevLog e a seção Git são necessárias e estão presentes. Por
+   fim, monte a seção ✅ Autorevisão do Assistente (6.9.4) com os checklists
+   específicos e universais preenchidos.
 
-Incluir esta recomendação na resposta final, antes da seção de Autorevisão.
+6.9.4. Apresentação Obrigatória da Autorevisão na Resposta
 
-🔴 ATUALIZAÇÃO DO GIT (OBRIGATÓRIO): Se a resposta envolver a criação ou modificação de arquivos, o assistente DEVE incluir a seção 📤 Como Atualizar o Repositório Git com Estas Mudanças, com os comandos Git apropriados.
+Ao final da resposta, o assistente DEVE incluir a seção:
 
-6.9.2. Apresentação Obrigatória da Autorevisão na Resposta
-Além de executar internamente o protocolo descrito acima, o assistente DEVE incluir, ao final de cada resposta relacionada ao Projeto MCR, uma seção intitulada ✅ Autorevisão do Assistente. Esta seção deve conter os três checklists (Primeira, Segunda e Terceira Revisão) com todos os itens marcados como verificados [x].
+**✅ Autorevisão do Assistente**  
+- Camada(s) envolvida(s): [ex.: Lua Servidor + OTUI]  
+- Checklist Específica da Camada (itens marcados `[x]`): [reproduzir os itens da lista específica preenchidos]  
+- Checklist Universal (itens marcados `[x]`): [reproduzir os itens universais preenchidos]  
 
-Esta inclusão serve como comprovação pública de que o processo de garantia de qualidade foi rigorosamente seguido e concluído com sucesso antes da entrega da resposta. A ausência desta seção em uma resposta relacionada ao MCR será considerada uma não conformidade com a especificação do projeto.
-
+A ausência desta seção torna a resposta inválida para o Projeto MCR.
 6.10. Princípio de Experiência Exclusivamente no Cliente (Meta‑Instrução)
 ⚠️ REGRA FUNDAMENTAL DO PROJETO MCR
 
