@@ -1616,3 +1616,35 @@ RESULTADO:
   a versão anterior).
 
 ================================================================================
+
+================================================================================
+FASE 36 – INCORPORAÇÃO DE APRENDIZADOS DE COLABORAÇÃO (GIT + CONSULTA INTELIGENTE AO CÓDIGO-FONTE)
+Data: 23/04/2026 (continuação)
+================================================================================
+
+CONTEXTO:
+- Comandos Git com caminhos contendo espaços falhavam no PowerShell quando escapados
+  com barra invertida (estilo Bash). Exemplo correto: git add "docs/Projeto MCR.txt".
+- A documentação anterior sugeria que o código-fonte RAW no GitHub fosse usado como
+  "autoridade máxima". Isso poderia levar o assistente a ignorar modificações já
+  discutidas na conversa mas ainda não commitadas, causando conflitos.
+- A diretiva correta é: usar o RAW como referência de estrutura/contexto, mas nunca
+  como verdade absoluta que invalide o que foi acordado na interação atual.
+
+AÇÕES REALIZADAS (ÂMBITO DA DOCUMENTAÇÃO):
+1. Adicionada nota sobre uso de aspas duplas no PowerShell na seção 2.11.3 do
+   `Projeto MCR.txt`.
+2. Criada a seção 6.13 (Consulta ao Código-Fonte como Referência de Contexto) no
+   `Projeto MCR.txt`, esclarecendo as limitações do RAW e estabelecendo o protocolo
+   de uso (referência estrutural, não autoridade invalidante).
+3. Atualizado o arquivo `MCR_INSTRUCOES_ASSISTENTE.txt` para a versão 2.1:
+   - Adicionada regra inegociável nº6 sobre consulta inteligente ao RAW.
+   - Incluída nota sobre PowerShell no protocolo de resposta.
+   - Inserida quarta pergunta no modelo de pensamento interno.
+4. Registrada esta fase no DevLog e preparada a subida dos três arquivos.
+
+RESULTADO:
+- Redução de erros operacionais com Git no Windows.
+- Assistente passa a usar o RAW como ferramenta de compreensão, sem o risco de
+  rejeitar automaticamente instruções válidas por base em código desatualizado.
+- Documentação alinhada com a realidade de desenvolvimento iterativo e colaborativo.

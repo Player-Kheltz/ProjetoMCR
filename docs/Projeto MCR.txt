@@ -477,6 +477,13 @@ git push origin main
 PADRÃO DE LINGUAGEM E LOCALIZAÇÃO (PT‑BR OBRIGATÓRIO)
 Regra inegociável: Todo o conteúdo textual do projeto, em qualquer camada (servidor, cliente, scripts, configurações), deve ser escrito em português do Brasil (pt‑BR).
 
+⚠️ Atenção para PowerShell: Ao usar o terminal do Windows, caminhos com espaços devem
+ser envolvidos entre aspas duplas. Exemplo:
+  git add "docs/Projeto MCR.txt"
+Nunca use barra invertida antes do espaço (estilo Bash), pois o PowerShell a interpreta
+de maneira diferente.
+
+
 3.1. Escopo de Aplicação
 Escopo Aplicação
 Mensagens ao Jogador Diálogos de NPC, descrições de itens, mensagens de sistema, broadcasts, texto em janelas modais, quest log, notificações toast, texto de HUD.
@@ -1395,5 +1402,43 @@ Criação de Personagem: Protótipo funcional do "Salão dos Destinos". O jogado
 Banco de Dados: BancoServer.
 
 O sucesso do projeto depende da adesão estrita a estas diretrizes, garantindo uma experiência de jogo coesa, imersiva, totalmente localizada em português do Brasil e exclusivamente contida dentro do cliente de jogo.
+
+6.13. Consulta ao Código-Fonte como Referência de Contexto (NÃO como Autoridade Absoluta)
+
+⚠️ REGRA DE VERIFICAÇÃO DE CONTEXTO REAL
+
+O repositório oficial do Projeto MCR (https://github.com/Player-Kheltz/ProjetoMCR)
+contém o código-fonte de todos os componentes. O assistente DEVE consultá-lo, via
+GitHub RAW, sempre que precisar compreender a estrutura, lógica ou implementação de
+um arquivo — especialmente ao analisar erros de compilação, fluxos complexos ou
+arquivos extensos que não foram fornecidos diretamente na conversa.
+
+No entanto, é crucial entender os limites dessa consulta:
+
+1. O código-fonte no repositório reflete o **último commit realizado**. Se a conversa
+   atual já discutiu modificações, correções ou novas implementações que ainda não
+   foram commitadas, o RAW estará DESATUALIZADO em relação ao estado real acordado.
+
+2. A documentação (Projeto MCR.txt) e o DevLog podem descrever funcionalidades
+   planejadas ou parcialmente implementadas que ainda não estão visíveis no RAW.
+
+3. Portanto, a inspeção do código-fonte serve como:
+   - Referência de **contexto e estrutura**: entender como um módulo é organizado,
+     quais funções/bindings existem, a sintaxe esperada.
+   - Fonte de **verificação complementar**: confirmar se um determinado método ou
+     constante realmente existe na versão base, para evitar sugerir algo impossível.
+   - Jamais como autoridade para **invalidar** instruções, decisões ou trechos de
+     código já acordados durante a conversa atual.
+
+Protocolo de Uso:
+- Ao receber uma solicitação que envolva um arquivo não fornecido, o assistente
+  pode acessar https://raw.githubusercontent.com/Player-Kheltz/ProjetoMCR/main/...
+  para obter o conteúdo e compreender sua estrutura.
+- Se o conteúdo RAW conflitar com o que o usuário está solicitando ou descrevendo,
+  o assistente deve assumir que a versão RAW está desatualizada e basear-se nas
+  instruções mais recentes da conversa e na documentação do projeto.
+- Caso identifique uma discrepância relevante, deve reportá-la educadamente,
+  perguntando se deseja atualizar o repositório, mas sem rejeitar automaticamente
+  a solicitação original.
 
 📎 Documento auxiliar obrigatório: MCR_DevLog.txt (diário de desenvolvimento).
