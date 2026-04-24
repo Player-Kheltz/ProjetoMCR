@@ -1,339 +1,222 @@
 --[[
 Projeto: MCR
-M√≥dulo: Account Manager "Alma" ‚Äì NPC Or√°culo dos Caminhos
-Arquivo: data/npc/scripts/oraculo.lua
-Descri√ß√£o: NPC respons√°vel por guiar o jogador no "Sal√£o dos Destinos",
-oferecendo cria√ß√£o de personagem, altera√ß√£o de senha e exclus√£o de personagens.
-Implementa a experi√™ncia 100% no cliente, substituindo interfaces externas.
+MÛdulo: NPC Or·culo dos Caminhos (CriaÁ„o de Personagem)
+Arquivo: data-canary/npc/oraculo.lua
+DescriÁ„o: Guia o Account Manager "Alma" na criaÁ„o de um novo herÛi.
+           Valida o nome, recebe sexo e vocaÁ„o, cria o personagem e desconecta Alma.
 --]]
 
-dofile('MCR Scripts/npc_utils.lua')
+-- Ajuste o caminho para a biblioteca de utilidades NPC (verifique local exato)
+dofile('data/npc/lib/npc_utils.lua')
 
--- Configura√ß√£o do NPC
-local npcName = "Or√°culo dos Caminhos"
+-- ConfiguraÁ„o do NPC
+local npcName = "Or·culo dos Caminhos"
 local npcType = Game.createNpcType(npcName)
 local npcConfig = {
     name = npcName,
-    outfit = { lookType = 160, lookHead = 0, lookBody = 0, lookLegs = 0, lookFeet = 0, lookAddons = 0 },
-    floorChange = false
+    outfit = {
+        lookType = 128,
+        lookHead = 0,
+        lookBody = 0,
+        lookLegs = 0,
+        lookFeet = 0
+    },
+    needReset = false,
+    resetTime = 60
 }
 
--- Constantes do Sistema (Storages e Opcodes)
-local STORAGE_ALMA_ACCOUNT_MANAGER = 50010      -- Indica que o personagem √© o "Alma" da conta
-local STORAGE_CREATION_STEP = 50011            -- Etapa do fluxo de cria√ß√£o (1=nome, 2=sexo, 3=vocacao)
-local STORAGE_TEMP_NAME = 50012                -- Nome tempor√°rio escolhido
-local STORAGE_TEMP_SEX = 50013                 -- Sexo tempor√°rio (0=masc, 1=fem)
-local STORAGE_DELETE_TARGET = 50014            -- GUID do personagem a ser deletado (para confirma√ß√£o)
+-- Registra o tipo de NPC (agora no inÌcio, como È padr„o)
+npcType:register(npcConfig)
 
-local OPCODE_QUEST_UPDATE = 180                -- Reservado para atualiza√ß√µes de HUD/Toast (conforme se√ß√£o 6.6)
-local OPCODE_ACCOUNT_MANAGER = 200             -- Comunica√ß√µes espec√≠ficas do Account Manager
-
--- Lista branca de caracteres seguros para nomes (evita corrup√ß√£o visual no OTClient)
-local function isNameAllowed(name)
-    if not name or #name < 3 or #name > 20 then return false end
-    for b in string.gmatch(name, ".") do
-        local byte = string.byte(b)
-        if byte == 0xE3 or byte == 0xF5 or byte == 0xED or byte == 0xFA or byte == 0xE9 or byte == 0xE1 then
-            return false
-        end
-    end
-    return true
-end
-
--- Verifica se o nome j√° existe no banco
-local function isNameTaken(name)
-    local result = db.storeQuery("SELECT `id` FROM `players` WHERE `name` = " .. db.escapeString(name))
-    if result then
-        result:free()
-        return true
-    end
-    return false
-end
-
--- Cria o personagem no banco de dados
-local function createCharacter(accountId, name, sex, vocationId)
-    local townId = 1 -- VERIFICA√á√ÉO PENDENTE: ID da cidade inicial (Temple) no mapa MCR
-    local posX, posY, posZ = 100, 100, 7 -- VERIFICA√á√ÉO PENDENTE: Coordenadas de spawn inicial
-
-    db.query("INSERT INTO `players` (`name`, `account_id`, `vocation`, `sex`, `town_id`, `posx`, `posy`, `posz`, `level`, `health`, `healthmax`, `experience`, `looktype`, `lookhead`, `lookbody`, `looklegs`, `lookfeet`, `lookaddons`, `maglevel`, `mana`, `manamax`, `manaspent`, `soul`, `conditions`, `cap`, `lastlogin`, `lastip`, `save`, `skull`, `skulltime`, `deleted`) VALUES (" ..
-        db.escapeString(name) .. ", " .. accountId .. ", " .. vocationId .. ", " .. sex .. ", " .. townId .. ", " .. posX .. ", " .. posY .. ", " .. posZ .. ", 1, 150, 150, 0, " .. (sex == 0 and 128 or 136) .. ", 0, 0, 0, 0, 0, 0, 5, 5, 0, 100, '', 400, 0, 0, 1, 0, 0, 0)")
-
-    return true
-end
-
--- Callbacks e Handlers
+-- InicializaÁ„o do sistema de palavras-chave e foco
 local keywordHandler = KeywordHandler:new()
 local npcHandler = NpcHandler:new(keywordHandler)
 
--- Callback de sauda√ß√£o (chamado quando o jogador diz "hi", "ol√°", etc.)
-function onGreet(cid)
+-- ? Essencial: parseia os par‚metros (mas aqui n„o temos tabela 'parameters', È seguro)
+NpcSystem.parseParameters(npcHandler)
+
+-- Constantes
+local VOCATIONS = {
+    ["guerreiro"] = {id = 1, nome = "Guerreiro"},
+    ["arqueiro"]  = {id = 2, nome = "Arqueiro"},
+    ["mago"]      = {id = 3, nome = "Mago"},
+    ["druida"]    = {id = 4, nome = "Druida"}
+}
+local VALID_CHARS_PATTERN = "^[a-zA-Z0-9·ÈÌÛ˙‡ËÏÚ˘‚ÍÓÙ˚„ıÁ¡…Õ”⁄¿»Ã“Ÿ¬ Œ‘€√’« .'-]+$"
+local START_POS = {x = 1000, y = 1000, z = 7} -- VERIFICA«√O PENDENTE: coordenadas reais da cidade inicial
+
+-- FunÁıes de validaÁ„o e criaÁ„o
+local function isValidName(name)
+    if not name or name:len() < 3 or name:len() > 20 then return false end
+    return name:match(VALID_CHARS_PATTERN) ~= nil
+end
+
+local function isNameTaken(name)
+    local result = db.storeQuery("SELECT `id` FROM `players` WHERE `name` = " .. db.escapeString(name) .. " LIMIT 1")
+    local taken = result and result:getRows(true) > 0
+    if result then Result.free(result) end
+    return taken
+end
+
+local function createCharacter(accountId, name, sex, vocationId, pos)
+    local success, err = pcall(function()
+        db.query(
+            "INSERT INTO `players` (`name`, `account_id`, `sex`, `vocation`, `level`, `health`, `healthmax`, `experience`, `looktype`, `posx`, `posy`, `posz`, `town_id`) " ..
+            "VALUES (%s, %d, %d, %d, 8, 185, 185, 4200, %d, %d, %d, %d, 2)",
+            db.escapeString(name), accountId, sex, vocationId,
+            sex == 1 and 136 or 128,
+            pos.x, pos.y, pos.z
+        )
+    end)
+    return success
+end
+
+-- Callback de saudaÁ„o autom·tica
+function greetCallback(cid)
     local player = Player(cid)
-    if not player then return false end
+    if not player then return true end
 
-    -- Verifica se o jogador √© o "Alma" da conta (Account Manager)
-    local isAlma = (player:getName():lower() == "alma") or (player:getStorageValue(STORAGE_ALMA_ACCOUNT_MANAGER) == 1)
-    if not isAlma then
-        npcHandler:say("Apenas aquele que carrega o nome de 'Alma' pode adentrar os segredos do destino. Se voc√™ n√£o √© Alma, sua jornada ainda n√£o come√ßou...", cid)
-        return false -- N√£o inicia o di√°logo
+    if player:getName() == "Alma" then
+        npcHandler:say("SaudaÁıes, Alma! Sou o guardi„o dos destinos. Se deseja criar um novo herÛi, diga {{#00FF00}}criar personagem{{/}}.", cid)
+    else
+        npcHandler:say("Apenas a entidade conhecida como 'Alma' pode criar novos destinos.", cid)
     end
-
-    -- Inicia o di√°logo normalmente
-    npcHandler.topic[cid] = 0
-    local tr = NpcUtils.getTratamento(player)
-    npcHandler:say("Sauda√ß√µes, " .. tr.artigo .. " " .. tr.vocativo .. "! Sou o Or√°culo dos Caminhos, guardi√£o do Sal√£o dos Destinos. Voc√™ pode:\n" ..
-                   "{{#00FF00}}criar personagem{{/}} - forjar um novo her√≥i\n" ..
-                   "{{#00FF00}}alterar senha{{/}} - modificar a senha da conta\n" ..
-                   "{{#00FF00}}deletar personagem{{/}} - apagar um her√≥i existente\n" ..
-                   "{{#00FF00}}sair{{/}} - encerrar nossa conversa", cid)
     return true
 end
 
--- Callback de despedida (opcional, para limpar estado)
-function onFarewell(cid)
-    npcHandler.topic[cid] = nil
-    npcHandler:releaseFocus(cid)
-    return true
-end
-
+-- Callback principal de di·logo (completa)
 function creatureSayCallback(cid, type, msg)
     local player = Player(cid)
     if not player then return true end
-    local msgLower = msg:lower()
 
-    -- Verifica novamente se √© o Alma (seguran√ßa extra)
-    local isAlma = (player:getName():lower() == "alma") or (player:getStorageValue(STORAGE_ALMA_ACCOUNT_MANAGER) == 1)
-    if not isAlma then
+    if player:getName() ~= "Alma" then
+        npcHandler:say("Apenas a entidade conhecida como 'Alma' pode criar novos destinos.", cid)
         return true
     end
 
-    -- Se o jogador disser "sair" em qualquer momento, encerra o di√°logo
-    if NpcUtils.correspondeAcao(msgLower, {"sair", "terminar", "fechar", "adeus"}) then
-        npcHandler:say("Que os ventos do destino o guiem, Alma. Retorne quando precisar de meus servi√ßos.", cid)
-        npcHandler:releaseFocus(cid)
-        npcHandler.topic[cid] = nil
-        return true
-    end
+    msg = msg:lower()
+    local topic = npcHandler.topic[cid] or 0
 
-    -- Di√°logo Principal (Menu do Account Manager)
-    if npcHandler.topic[cid] == 0 then
-        if NpcUtils.correspondeAcao(msgLower, {"criar", "criar personagem", "novo personagem", "heroi"}) then
-            npcHandler:say("Ah... voc√™ deseja forjar um novo her√≥i para trilhar os caminhos deste mundo. Primeiro, preciso saber o {{#00BFFF}}nome{{/}} que ele carregar√°. Diga-me o nome desejado.", cid)
+    -- Estado 0: aguardando "criar personagem"
+    if topic == 0 then
+        if NpcUtils.correspondeAcao(msg, {"criar personagem", "novo heroi", "criar"}) then
+            npcHandler:say("Muito bem! Vamos moldar um novo destino. Primeiro, diga o nome que deseja para o herÛi.", cid)
             npcHandler.topic[cid] = 1
-            player:setStorageValue(STORAGE_CREATION_STEP, 1)
-        elseif NpcUtils.correspondeAcao(msgLower, {"senha", "alterar senha", "mudar senha", "password"}) then
-            npcHandler:say("Voc√™ deseja alterar a senha de sua conta. Diga a {{#00FF00}}senha atual{{/}} para prosseguir.", cid)
-            npcHandler.topic[cid] = 10
-        elseif NpcUtils.correspondeAcao(msgLower, {"deletar", "excluir", "apagar personagem", "remover personagem"}) then
-            local result = db.storeQuery("SELECT `id`, `name`, `vocation`, `level` FROM `players` WHERE `account_id` = " .. player:getAccountId() .. " AND `name` != 'Alma' AND `deleted` = 0")
-            if result then
-                local list = {}
-                repeat
-                    local id = result.getNumber(result, "id")
-                    local name = result.getString(result, "name")
-                    local vocation = result.getNumber(result, "vocation")
-                    local level = result.getNumber(result, "level")
-                    table.insert(list, string.format("{{#00BFFF}}%s{{/}} (N√≠vel %d) - ID %d", name, level, id))
-                until not result.next(result)
-                result:free()
-                if #list > 0 then
-                    npcHandler:say("Estes s√£o os her√≥is vinculados √† sua conta:\n" .. table.concat(list, "\n") .. "\n\nPara deletar um personagem, diga {{#00FF00}}deletar [ID]{{/}}. Exemplo: {{#00FF00}}deletar 5{{/}}.", cid)
-                    npcHandler.topic[cid] = 20
-                else
-                    npcHandler:say("Sua conta n√£o possui outros personagens al√©m de mim, Alma. Crie um novo her√≥i primeiro.", cid)
-                    npcHandler.topic[cid] = 0
-                end
-            else
-                npcHandler:say("Houve um erro ao consultar seus personagens. Tente novamente mais tarde.", cid)
-            end
-        else
-            local tr = NpcUtils.getTratamento(player)
-            npcHandler:say("Sou o Or√°culo dos Caminhos, guardi√£o do Sal√£o dos Destinos. Voc√™ pode:\n" ..
-                           "{{#00FF00}}criar personagem{{/}} - forjar um novo her√≥i\n" ..
-                           "{{#00FF00}}alterar senha{{/}} - modificar a senha da conta\n" ..
-                           "{{#00FF00}}deletar personagem{{/}} - apagar um her√≥i existente\n" ..
-                           "{{#00FF00}}sair{{/}} - encerrar nossa conversa", cid)
         end
         return true
     end
 
-    -- Fluxo de Cria√ß√£o de Personagem
-    local step = player:getStorageValue(STORAGE_CREATION_STEP)
-    if step == 1 then
-        local name = msg:match("^%s*(.-)%s*$")
-        if not isNameAllowed(name) then
-            npcHandler:say("O nome '" .. name .. "' cont√©m caracteres n√£o permitidos ou n√£o atende ao comprimento (3-20). Por favor, escolha outro.", cid)
+    -- Estado 1: recebendo o nome
+    if topic == 1 then
+        local name = msg:gsub("^%l", string.upper)
+        if not isValidName(name) then
+            npcHandler:say("Esse nome n„o È v·lido. Use de 3 a 20 caracteres e apenas letras, n˙meros, espaÁos, apÛstrofos e hÌfens.", cid)
             return true
         end
         if isNameTaken(name) then
-            npcHandler:say("Esse nome j√° pertence a outro her√≥i neste mundo. Escolha um nome diferente.", cid)
+            npcHandler:say("J· existe um herÛi com esse nome. Escolha outro.", cid)
             return true
         end
-        player:setStorageValue(STORAGE_TEMP_NAME, name)
-        player:setStorageValue(STORAGE_CREATION_STEP, 2)
-        npcHandler:say("√ìtimo, o nome '" .. name .. "' est√° dispon√≠vel. Agora, escolha o {{#00FF00}}sexo{{/}} do seu personagem: {{#00BFFF}}masculino{{/}} ou {{#00BFFF}}feminino{{/}}.", cid)
-        npcHandler.topic[cid] = 1
-    elseif step == 2 then
-        local sexChoice = nil
-        if NpcUtils.correspondeAcao(msgLower, {"masculino", "homem", "male", "masc"}) then
-            sexChoice = 0
-        elseif NpcUtils.correspondeAcao(msgLower, {"feminino", "mulher", "female", "fem"}) then
-            sexChoice = 1
-        end
-        if sexChoice == nil then
-            npcHandler:say("Por favor, especifique 'masculino' ou 'feminino'.", cid)
-            return true
-        end
-        player:setStorageValue(STORAGE_TEMP_SEX, sexChoice)
-        player:setStorageValue(STORAGE_CREATION_STEP, 3)
-        npcHandler:say("Muito bem. Por fim, escolha a {{#00FF00}}voca√ß√£o{{/}} que guiar√° o destino de seu her√≥i:\n" ..
-                       "{{#00BFFF}}guerreiro{{/}} - mestre da espada e escudo\n" ..
-                       "{{#00BFFF}}arqueiro{{/}} - atirador preciso com arco e flecha\n" ..
-                       "{{#00BFFF}}mago{{/}} - tecel√£o dos v√©us arcanos\n" ..
-                       "{{#00BFFF}}druida{{/}} - guardi√£o dos ciclos naturais", cid)
-        npcHandler.topic[cid] = 1
-    elseif step == 3 then
-        local vocMap = {
-            guerreiro = 1, knight = 1,
-            arqueiro = 2, paladin = 2,
-            mago = 3, sorcerer = 3,
-            druida = 4, druid = 4
-        }
-        local vocId = nil
-        for k, v in pairs(vocMap) do
-            if msgLower:find(k, 1, true) then
-                vocId = v
-                break
-            end
-        end
-        if not vocId then
-            npcHandler:say("N√£o reconheci essa voca√ß√£o. Por favor, diga 'guerreiro', 'arqueiro', 'mago' ou 'druida'.", cid)
-            return true
-        end
+        npcHandler.topic[cid] = 2
+        npcHandler:say("Nome '" .. name .. "' aceito! Agora, escolha o sexo do herÛi: {{#00FF00}}masculino{{/}} ou {{#00FF00}}feminino{{/}}.", cid)
+        if not npcHandler.data then npcHandler.data = {} end
+        npcHandler.data[cid] = { name = name }
+        return true
+    end
 
-        local accountId = player:getAccountId()
-        local name = player:getStorageValue(STORAGE_TEMP_NAME)
-        local sex = player:getStorageValue(STORAGE_TEMP_SEX)
+    -- Estado 2: escolha do sexo
+    if topic == 2 then
+        local sexo = nil
+        if NpcUtils.correspondeAcao(msg, {"masculino"}) then
+            sexo = 0
+        elseif NpcUtils.correspondeAcao(msg, {"feminino"}) then
+            sexo = 1
+        end
+        if not sexo then
+            npcHandler:say("Por favor, diga {{#00FF00}}masculino{{/}} ou {{#00FF00}}feminino{{/}}.", cid)
+            return true
+        end
+        npcHandler.data[cid].sex = sexo
+        npcHandler.topic[cid] = 3
+        npcHandler:say("”timo! Agora escolha a vocaÁ„o do herÛi:\n" ..
+            "{{#00BFFF}}Guerreiro{{/}} - mestre da espada\n" ..
+            "{{#00BFFF}}Arqueiro{{/}} - perito em ataques ‡ dist‚ncia\n" ..
+            "{{#00BFFF}}Mago{{/}} - manipulador das artes arcanas\n" ..
+            "{{#00BFFF}}Druida{{/}} - guardi„o da natureza\n" ..
+            "Diga o nome da vocaÁ„o desejada.", cid)
+        return true
+    end
 
-        local vocNames = {"Guerreiro", "Arqueiro", "Mago", "Druida"}
-        local sexNames = {"masculino", "feminino"}
-        npcHandler:say("Confirme os dados do novo her√≥i:\n" ..
-                       "Nome: {{#00BFFF}}" .. name .. "{{/}}\n" ..
-                       "Sexo: {{#00BFFF}}" .. sexNames[sex+1] .. "{{/}}\n" ..
-                       "Voca√ß√£o: {{#00BFFF}}" .. vocNames[vocId] .. "{{/}}\n\n" ..
-                       "Se estiver correto, diga {{#00FF00}}confirmar{{/}}. Para cancelar, diga {{#00FF00}}cancelar{{/}}.", cid)
+    -- Estado 3: escolha da vocaÁ„o
+    if topic == 3 then
+        local voc = VOCATIONS[msg]
+        if not voc then
+            npcHandler:say("VocaÁ„o desconhecida. Escolha entre: Guerreiro, Arqueiro, Mago ou Druida.", cid)
+            return true
+        end
+        npcHandler.data[cid].vocation = voc.id
         npcHandler.topic[cid] = 4
-        player:setStorageValue(STORAGE_CREATION_STEP, 4)
-        player:setStorageValue("temp_voc", vocId)
-    elseif step == 4 then
-        if NpcUtils.correspondeAcao(msgLower, {"confirmar", "sim", "criar"}) then
-            local name = player:getStorageValue(STORAGE_TEMP_NAME)
-            local sex = player:getStorageValue(STORAGE_TEMP_SEX)
-            local vocId = player:getStorageValue("temp_voc")
-            local accountId = player:getAccountId()
-
-            if createCharacter(accountId, name, sex, vocId) then
-                npcHandler:say("Seu novo her√≥i, " .. name .. ", foi forjado com sucesso! Que sua jornada seja √©pica. Agora, devo libert√°-lo deste Sal√£o... At√© breve.", cid)
-                player:remove()
-            else
-                npcHandler:say("Ocorreu um erro inesperado ao criar o personagem. Por favor, tente novamente.", cid)
-                player:setStorageValue(STORAGE_CREATION_STEP, -1)
-                npcHandler.topic[cid] = 0
-            end
-        elseif NpcUtils.correspondeAcao(msgLower, {"cancelar", "nao", "abortar"}) then
-            npcHandler:say("Entendo. A cria√ß√£o foi cancelada. O que mais deseja fazer?", cid)
-            player:setStorageValue(STORAGE_CREATION_STEP, -1)
-            npcHandler.topic[cid] = 0
-        else
-            npcHandler:say("Por favor, diga 'confirmar' para criar ou 'cancelar' para abortar.", cid)
-        end
+        local dados = npcHandler.data[cid]
+        npcHandler:say("Resumo da criaÁ„o:\n" ..
+            "Nome: " .. dados.name .. "\n" ..
+            "Sexo: " .. (dados.sex == 0 and "Masculino" or "Feminino") .. "\n" ..
+            "VocaÁ„o: " .. VOCATIONS[msg].nome .. "\n" ..
+            "Digite {{#00FF00}}confirmar{{/}} para concluir ou {{#00FF00}}cancelar{{/}} para reiniciar.", cid)
         return true
     end
 
-    -- Fluxo de Altera√ß√£o de Senha
-    if npcHandler.topic[cid] == 10 then
-        local currentPass = msg
-        local accountId = player:getAccountId()
-        local result = db.storeQuery("SELECT `password` FROM `accounts` WHERE `id` = " .. accountId)
-        if result then
-            local storedHash = result.getString(result, "password")
-            result:free()
-            if crypto.sha1(currentPass) == storedHash then
-                npcHandler:say("Senha atual confirmada. Agora, diga a {{#00FF00}}nova senha{{/}} que deseja utilizar (m√≠nimo 8 caracteres, letras e n√∫meros).", cid)
-                npcHandler.topic[cid] = 11
-                player:setStorageValue("temp_pass_verified", 1)
+    -- Estado 4: confirmaÁ„o final
+    if topic == 4 then
+        if NpcUtils.correspondeAcao(msg, {"confirmar"}) then
+            local dados = npcHandler.data[cid]
+            local success = createCharacter(player:getAccountId(), dados.name, dados.sex, dados.vocation, START_POS)
+            if success then
+                npcHandler:say("O herÛi " .. dados.name .. " foi criado com sucesso! Quando estiver pronto, ele aguardar· na lista de personagens.\n" ..
+                    "Alma, sua miss„o est· cumprida. AtÈ o prÛximo destino!", cid)
+                addEvent(function()
+                    local alma = Player(cid)
+                    if alma then alma:remove() end
+                end, 2000)
             else
-                npcHandler:say("A senha informada est√° incorreta. Opera√ß√£o cancelada.", cid)
-                npcHandler.topic[cid] = 0
+                npcHandler:say("Houve um erro ao criar o personagem. Verifique os logs do servidor.", cid)
             end
-        else
-            npcHandler:say("N√£o foi poss√≠vel verificar sua conta. Tente novamente.", cid)
             npcHandler.topic[cid] = 0
-        end
-        return true
-    elseif npcHandler.topic[cid] == 11 then
-        if player:getStorageValue("temp_pass_verified") ~= 1 then
-            npcHandler.topic[cid] = 0
+            npcHandler.data[cid] = nil
             return true
         end
-        local newPass = msg
-        if #newPass < 8 or not newPass:match("%a") or not newPass:match("%d") then
-            npcHandler:say("A nova senha deve ter no m√≠nimo 8 caracteres e conter pelo menos uma letra e um n√∫mero. Tente novamente.", cid)
+        if NpcUtils.correspondeAcao(msg, {"cancelar"}) then
+            npcHandler:say("CriaÁ„o cancelada. Podemos recomeÁar quando quiser.", cid)
+            npcHandler.topic[cid] = 0
+            npcHandler.data[cid] = nil
             return true
         end
-        local accountId = player:getAccountId()
-        local newHash = crypto.sha1(newPass)
-        db.query("UPDATE `accounts` SET `password` = " .. db.escapeString(newHash) .. " WHERE `id` = " .. accountId)
-        npcHandler:say("Sua senha foi alterada com sucesso! Guarde-a bem, pois ela √© a chave para seu destino.", cid)
-        player:setStorageValue("temp_pass_verified", -1)
-        npcHandler.topic[cid] = 0
-        return true
-    end
-
-    -- Fluxo de Exclus√£o de Personagem
-    if npcHandler.topic[cid] == 20 then
-        local guid = tonumber(msgLower:match("deletar%s+(%d+)"))
-        if not guid then
-            npcHandler:say("Para deletar um personagem, diga 'deletar [ID]' conforme listado. Exemplo: 'deletar 5'.", cid)
-            return true
-        end
-        local result = db.storeQuery("SELECT `name` FROM `players` WHERE `id` = " .. guid .. " AND `account_id` = " .. player:getAccountId() .. " AND `name` != 'Alma' AND `deleted` = 0")
-        if result then
-            local name = result.getString(result, "name")
-            result:free()
-            player:setStorageValue(STORAGE_DELETE_TARGET, guid)
-            npcHandler:say("Voc√™ tem certeza que deseja deletar permanentemente o personagem {{#00BFFF}}" .. name .. "{{/}}? Esta a√ß√£o √© {{#FF0000}}irrevers√≠vel{{/}}. Diga {{#00FF00}}sim{{/}} para confirmar ou {{#00FF00}}n√£o{{/}} para cancelar.", cid)
-            npcHandler.topic[cid] = 21
-        else
-            npcHandler:say("Personagem n√£o encontrado ou voc√™ n√£o tem permiss√£o para delet√°-lo.", cid)
-        end
-        return true
-    elseif npcHandler.topic[cid] == 21 then
-        if NpcUtils.correspondeAcao(msgLower, {"sim", "confirmo", "delete"}) then
-            local guid = player:getStorageValue(STORAGE_DELETE_TARGET)
-            if guid and guid > 0 then
-                db.query("UPDATE `players` SET `deleted` = 1 WHERE `id` = " .. guid)
-                npcHandler:say("O personagem foi deletado. Que seu esp√≠rito encontre paz nos reinos esquecidos.", cid)
-            end
-            player:setStorageValue(STORAGE_DELETE_TARGET, -1)
-            npcHandler.topic[cid] = 0
-        elseif NpcUtils.correspondeAcao(msgLower, {"nao", "cancelar"}) then
-            npcHandler:say("A exclus√£o foi cancelada. O que mais deseja fazer?", cid)
-            player:setStorageValue(STORAGE_DELETE_TARGET, -1)
-            npcHandler.topic[cid] = 0
-        else
-            npcHandler:say("Responda 'sim' para confirmar a exclus√£o ou 'n√£o' para cancelar.", cid)
-        end
+        npcHandler:say("Por favor, diga {{#00FF00}}confirmar{{/}} ou {{#00FF00}}cancelar{{/}}.", cid)
         return true
     end
 
     return true
 end
 
--- Configura√ß√£o dos callbacks
-npcHandler:setCallback(CALLBACK_GREET, onGreet)
-npcHandler:setCallback(CALLBACK_FAREWELL, onFarewell)
+-- Registro das callbacks
+npcHandler:setCallback(CALLBACK_GREET, greetCallback)
 npcHandler:setCallback(CALLBACK_MESSAGE_DEFAULT, creatureSayCallback)
-npcHandler:addModule(FocusModule:new())
 
--- Registro do tipo de NPC
-npcType:register(npcConfig)
+-- ??? FUN«’ES OBRIGAT”RIAS DE CICLO DE VIDA (fazem o vÌnculo com o NPC) ???
+function onCreatureAppear(cid)
+    npcHandler:onCreatureAppear(cid)
+end
+
+function onCreatureDisappear(cid)
+    npcHandler:onCreatureDisappear(cid)
+end
+
+function onCreatureSay(cid, type, msg)
+    npcHandler:onCreatureSay(cid, type, msg)
+end
+
+function onThink()
+    npcHandler:onThink()
+end
+
+-- Agora sim, apÛs tudo configurado, adiciona o mÛdulo de foco
+npcHandler:addModule(FocusModule:new())

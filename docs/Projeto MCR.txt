@@ -1,4 +1,4 @@
-📜 PROJETO MCR – ESPECIFICAÇÕES AVANÇADAS (CONSOLIDADO ATÉ FASE 34)
+📜 PROJETO MCR – ESPECIFICAÇÕES AVANÇADAS (CONSOLIDADO ATÉ FASE 40)
 Base do Servidor: opentibiabr/canary (Canary - Version 3.4.1) – Protocolo 15.00
 Cliente Exclusivo: opentibiabr/otclient – Motor 2D otimizado (C++17, Lua) – Protocolo 15.00
 Editor de Mapas: opentibiabr/remeres-map-editor – Compatível com .otbm Canary (Protocolo 15.00)
@@ -477,45 +477,84 @@ git push origin main
 PADRÃO DE LINGUAGEM E LOCALIZAÇÃO (PT‑BR OBRIGATÓRIO)
 Regra inegociável: Todo o conteúdo textual do projeto, em qualquer camada (servidor, cliente, scripts, configurações), deve ser escrito em português do Brasil (pt‑BR).
 
-2.12. Organização de Scripts Personalizados (Pasta MCR Scripts)
+2.12. Organização de Scripts e Arquivos Personalizados (Pastas MCR Scripts)
 
-Para manter todos os scripts criados durante o desenvolvimento do Projeto MCR
-separados dos arquivos originais do Canary, adotou-se uma pasta dedicada:
-**`data/scripts/MCR Scripts/`** (caminho a partir da raiz do servidor Canary,
-ex.: `E:\Projeto MCR\Canary\data\scripts\MCR Scripts\`).
+Para manter todos os arquivos criados durante o desenvolvimento do Projeto MCR
+separados dos originais de cada ferramenta, adotou-se uma pasta dedicada em
+cada componente do projeto. Os arquivos do projeto **nunca** devem ser
+misturados com os arquivos padrão das ferramentas.
 
-**Motivo e Funcionamento:**
-- O Canary utiliza o sistema **Revscriptsys**, que carrega automaticamente todo
-  arquivo `.lua` dentro de `data/scripts/` e suas subpastas. Portanto, scripts
-  colocados em `MCR Scripts` são reconhecidos pelo servidor sem configuração
-  adicional.
-- Scripts de NPC criados para o projeto devem ser salvos em
-  `data/npc/scripts/MCR Scripts/` (ou diretamente em `data/npc/scripts/`,
-  mas preferencialmente na subpasta para manter a organização).
-- Arquivos de biblioteca ou utilitários (ex.: `npc_utils.lua`) devem ser
-  referenciados por outros scripts através do caminho completo dentro do
-  diretório `data/`, por exemplo:
-  `dofile('data/scripts/MCR Scripts/npc_utils.lua')` ou
-  `dofile('data/npc/scripts/MCR Scripts/npc_utils.lua')`, conforme o caso.
+As pastas são:
 
-**Regra para Novos Arquivos:**
-- **Sempre que possível**, todo novo arquivo `.lua` criado para o projeto
-  (sistemas, bibliotecas, utilitários, scripts de criaturas, etc.) deve ser
-  salvo em **`data/scripts/MCR Scripts/`**.
-- Para **NPCs**, salve o script em **`data/npc/scripts/MCR Scripts/`**,
-  mantendo a separação lógica. Lembre-se de adicionar a entrada correspondente
-  no arquivo `data/world/MCR-npc.xml` (veja Seção 2.10).
+- **Servidor Canary:** `Projeto MCR\Canary\data\MCR Scripts\`
+- **OTClient:** `Projeto MCR\OTClient\data\MCR Scripts\`
+- **MapEditor (Remere's):** `Projeto MCR\MapEditor\data\MCR Scripts\`
+- **Login Server:** `Projeto MCR\LoginServer\MCR Scripts\`  
+  *(o Login Server não possui subpasta `data`; a pasta `MCR Scripts` fica
+  diretamente na raiz da aplicação)*
+
+---
+
+### Funcionamento e Regras por Componente
+
+#### 1. Servidor Canary (`Projeto MCR\Canary\data\MCR Scripts\`)
+- O servidor foi configurado para carregar automaticamente todos os arquivos
+  `.lua` presentes nessa pasta (por exemplo, através de um script de
+  inicialização em `data/scripts/` que inclui recursivamente o conteúdo).
+  Qualquer script colocado ali é reconhecido sem configuração adicional.
+- **Scripts de NPC:** Devem ser salvos nesta mesma pasta. Para que o NPC
+  apareça no jogo, o arquivo XML de spawn (`data/world/MCR-npc.xml`, veja
+  Seção 2.10) precisa referenciar o script com o caminho correto. Como o
+  atributo `script` do XML é interpretado a partir de `data/npc/scripts/`,
+  utilize uma notação relativa como `script="../../MCR Scripts/meu_npc.lua"`
+  ou um caminho absoluto, conforme a adaptação do servidor.
+- **Bibliotecas e utilitários:** Referencie-os com o caminho absoluto dentro
+  de `data/`, ex.: `dofile('data/MCR Scripts/lib.lua')`.
+
+#### 2. OTClient (`Projeto MCR\OTClient\data\MCR Scripts\`)
+- Todos os módulos, estilos, layouts e scripts personalizados devem ser
+  colocados exclusivamente nesta pasta.
+- O OTClient carrega arquivos a partir de seu próprio `data/`. Com a
+  configuração adequada dos módulos (ou um script de inicialização do
+  projeto), a subpasta `MCR Scripts` é vasculhada automaticamente.
+- Arquivos como `mcr_styles.otui`, `mcr_module.otmod` ou scripts Lua ficam
+  centralizados aqui, sem se misturar com os originais do cliente.
+
+#### 3. MapEditor (`Projeto MCR\MapEditor\data\MCR Scripts\`)
+- Extensões, brushes, terrenos personalizados ou quaisquer outros recursos
+  do Projeto MCR devem ser salvos nesta pasta.
+- Dependendo do tipo de arquivo, o Remere pode exigir que extensões `.lua`
+  estejam em `data/extensions/`. Nesse caso, uma extensão carregadora curta
+  em `data/extensions/` pode simplesmente incluir os scripts de
+  `data/MCR Scripts/`, mantendo toda a lógica do projeto isolada.
+
+#### 4. Login Server (`Projeto MCR\LoginServer\MCR Scripts\`)
+- Por não possuir uma subpasta `data/` em sua estrutura padrão, os arquivos
+  específicos do projeto (scripts, configurações complementares etc.) são
+  colocados diretamente em `MCR Scripts\` na raiz do Login Server.
+- O mecanismo de carregamento deve ser ajustado pelo desenvolvedor para
+  incluir esse diretório, respeitando sempre a regra de nunca modificar os
+  arquivos originais da ferramenta.
+
+---
+
+### Regra Geral para Novos Arquivos
+- **Sempre** crie novos arquivos do projeto dentro da respectiva pasta
+  `MCR Scripts` da ferramenta correspondente. Não utilize as pastas originais
+  a menos que seja estritamente necessário.
 - **Exceções:**
-  * Modificações em arquivos já existentes do Canary ou do OTClient (ex.:
-    `entergame.lua`, `config.lua`, módulos do cliente) devem permanecer em
-    seus locais originais.
-  * Scripts que dependem de caminhos relativos específicos definidos por
-    sistemas do Canary (ex.: ações de movimento em `data/scripts/actions/`)
-    podem precisar ficar em suas pastas originais. Nesse caso, o motivo será
-    explicado na criação do script.
+  * Alterações em arquivos já existentes (ex.: `config.lua` do Canary,
+    `entergame.lua` do OTClient, configurações padrão do Remere) devem ser
+    feitas nos locais originais.
+  * Scripts que dependem de caminhos relativos fixos de sistemas internos
+    (ex.: ações de movimento do Canary que exigem a pasta
+    `data/scripts/actions/`) podem precisar permanecer em seus diretórios
+    originais; a razão será documentada no próprio script.
 
-**Benefício:** Organização centralizada dos scripts do projeto, facilitando
-localização, backup e versionamento.
+**Benefício:** Cada ferramenta mantém uma separação clara entre os arquivos
+originais e os do Projeto MCR, simplificando a manutenção, o backup, o
+versionamento e a portabilidade de todo o ecossistema do servidor.
+
 
 ⚠️ Atenção para PowerShell: Ao usar o terminal do Windows, caminhos com espaços devem
 ser envolvidos entre aspas duplas. Exemplo:

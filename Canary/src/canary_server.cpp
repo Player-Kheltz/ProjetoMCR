@@ -64,9 +64,7 @@ int CanaryServer::run() {
 				validateDatapack();
 
 				// [MCR] Log do protocolo em português
-				logger.info("Protocolo do servidor: {}.{:02d}{}", 
-				            CLIENT_VERSION_UPPER, CLIENT_VERSION_LOWER, 
-				            g_configManager().getBoolean(OLD_PROTOCOL) ? " e 10x permitido!" : "");
+				logger.info("Protocolo do servidor: {}.{:02d}{}", CLIENT_VERSION_UPPER, CLIENT_VERSION_LOWER, g_configManager().getBoolean(OLD_PROTOCOL) ? " e 10x permitido!" : "");
 
 #ifdef FEATURE_METRICS
 				metrics::Options metricsOptions;
@@ -99,8 +97,7 @@ int CanaryServer::run() {
 
 #ifndef _WIN32
 				if (getuid() == 0 || geteuid() == 0) {
-					logger.warn("{} foi executado como root. Considere executar como um usuário normal.",
-					            "Projeto MCR");
+					logger.warn("{} foi executado como root. Considere executar como um usuário normal.", "Projeto MCR");
 				}
 #endif
 
@@ -146,14 +143,12 @@ int CanaryServer::run() {
 		auto now = std::chrono::steady_clock::now();
 
 		if (now - lastLog >= warnEvery) {
-			logger.warn("Inicialização ainda em andamento ({} s)...", 
-			            std::chrono::duration_cast<std::chrono::seconds>(now - start).count());
+			logger.warn("Inicialização ainda em andamento ({} s)...", std::chrono::duration_cast<std::chrono::seconds>(now - start).count());
 			lastLog = now;
 		}
 
 		if (now - start > timeout) {
-			logger.error("Inicialização excedeu {} minutos - abortando.", 
-			             std::chrono::duration_cast<std::chrono::minutes>(timeout).count());
+			logger.error("Inicialização excedeu {} minutos - abortando.", std::chrono::duration_cast<std::chrono::minutes>(timeout).count());
 			shutdown();
 			return EXIT_FAILURE;
 		}

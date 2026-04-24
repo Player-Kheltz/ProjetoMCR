@@ -1725,3 +1725,42 @@ RESULTADO:
   automaticamente os arquivos Projeto MCR.txt e MCR_DevLog.txt no GitHub RAW.
 - O usuário não precisará mais anexar todos os documentos, simplificando a interação.
 ================================================================================
+
+================================================================================
+FASE 40 – CORREÇÃO DEFINITIVA DA CODIFICAÇÃO DO CONSOLE (UTF-8 NO WINDOWS)
+Data: 24/04/2026
+================================================================================
+
+CONTEXTO:
+- Os logs do Canary apareciam corrompidos no console do Windows (ex.: "Vers├úo"
+  em vez de "Versão"), apesar de os arquivos fonte estarem em UTF-8 com BOM e
+  as strings em português estarem corretas.
+- O problema era causado pela code page padrão do console (CP 850/437), que não
+  interpreta corretamente os bytes UTF-8 enviados pelo servidor.
+
+AÇÕES REALIZADAS:
+1. Modificação do arquivo `Canary/src/main.cpp`:
+   - Adicionadas as chamadas `SetConsoleOutputCP(CP_UTF8)` e `SetConsoleCP(CP_UTF8)`
+     logo no início da função `main()`, dentro de um bloco condicional `#ifdef _WIN32`.
+   - Essas funções forçam o console do Windows a utilizar UTF-8 (CP 65001) como
+     codificação de saída e entrada.
+2. Recompilação do servidor Canary sem erros ou warnings adicionais.
+3. Reinício do servidor para validação.
+
+RESULTADO:
+✅ Todos os logs do Canary são agora exibidos com acentuação correta no console
+   do Windows, ex.: "Projeto MCR - Versão 3.2.0", "Conexão com o banco de dados
+   estabelecida!".
+✅ Nenhum impacto negativo na funcionalidade do servidor ou na comunicação de rede.
+✅ A experiência de administração do servidor alinha-se ao padrão de localização
+   pt‑BR do Projeto MCR.
+
+LIÇÕES APRENDIDAS:
+- Apenas salvar os fontes como UTF-8 com BOM não é suficiente para consoles
+  Windows legados; é imprescindível configurar a code page do console no código.
+- A API `SetConsoleOutputCP`/`SetConsoleCP` é a maneira mais direta e portável
+  de resolver o problema sem depender de configurações manuais do sistema.
+
+ARQUIVOS MODIFICADOS NESTA FASE:
+- `Canary/src/main.cpp`
+================================================================================
