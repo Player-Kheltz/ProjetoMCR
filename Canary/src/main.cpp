@@ -7,9 +7,18 @@
  * Website: https://docs.opentibiabr.com/
  */
 
+#ifdef _WIN32
+#include <windows.h>
+#endif
 #include "canary_server.hpp"
 #include "lib/di/container.hpp"
 
 int main() {
-	return inject<CanaryServer>().run();
+    // [MCR] Força o console do Windows a usar UTF‑8 para exibição correta de acentos
+    #ifdef _WIN32
+        SetConsoleOutputCP(CP_UTF8);      // Codificação da saída
+        SetConsoleCP(CP_UTF8);            // Codificação da entrada
+    #endif
+
+    return inject<CanaryServer>().run();
 }
