@@ -477,6 +477,46 @@ git push origin main
 PADRÃO DE LINGUAGEM E LOCALIZAÇÃO (PT‑BR OBRIGATÓRIO)
 Regra inegociável: Todo o conteúdo textual do projeto, em qualquer camada (servidor, cliente, scripts, configurações), deve ser escrito em português do Brasil (pt‑BR).
 
+2.12. Organização de Scripts Personalizados (Pasta MCR Scripts)
+
+Para manter todos os scripts criados durante o desenvolvimento do Projeto MCR
+separados dos arquivos originais do Canary, adotou-se uma pasta dedicada:
+**`data/scripts/MCR Scripts/`** (caminho a partir da raiz do servidor Canary,
+ex.: `E:\Projeto MCR\Canary\data\scripts\MCR Scripts\`).
+
+**Motivo e Funcionamento:**
+- O Canary utiliza o sistema **Revscriptsys**, que carrega automaticamente todo
+  arquivo `.lua` dentro de `data/scripts/` e suas subpastas. Portanto, scripts
+  colocados em `MCR Scripts` são reconhecidos pelo servidor sem configuração
+  adicional.
+- Scripts de NPC criados para o projeto devem ser salvos em
+  `data/npc/scripts/MCR Scripts/` (ou diretamente em `data/npc/scripts/`,
+  mas preferencialmente na subpasta para manter a organização).
+- Arquivos de biblioteca ou utilitários (ex.: `npc_utils.lua`) devem ser
+  referenciados por outros scripts através do caminho completo dentro do
+  diretório `data/`, por exemplo:
+  `dofile('data/scripts/MCR Scripts/npc_utils.lua')` ou
+  `dofile('data/npc/scripts/MCR Scripts/npc_utils.lua')`, conforme o caso.
+
+**Regra para Novos Arquivos:**
+- **Sempre que possível**, todo novo arquivo `.lua` criado para o projeto
+  (sistemas, bibliotecas, utilitários, scripts de criaturas, etc.) deve ser
+  salvo em **`data/scripts/MCR Scripts/`**.
+- Para **NPCs**, salve o script em **`data/npc/scripts/MCR Scripts/`**,
+  mantendo a separação lógica. Lembre-se de adicionar a entrada correspondente
+  no arquivo `data/world/MCR-npc.xml` (veja Seção 2.10).
+- **Exceções:**
+  * Modificações em arquivos já existentes do Canary ou do OTClient (ex.:
+    `entergame.lua`, `config.lua`, módulos do cliente) devem permanecer em
+    seus locais originais.
+  * Scripts que dependem de caminhos relativos específicos definidos por
+    sistemas do Canary (ex.: ações de movimento em `data/scripts/actions/`)
+    podem precisar ficar em suas pastas originais. Nesse caso, o motivo será
+    explicado na criação do script.
+
+**Benefício:** Organização centralizada dos scripts do projeto, facilitando
+localização, backup e versionamento.
+
 ⚠️ Atenção para PowerShell: Ao usar o terminal do Windows, caminhos com espaços devem
 ser envolvidos entre aspas duplas. Exemplo:
   git add "docs/Projeto MCR.txt"

@@ -1673,3 +1673,30 @@ RESULTADO:
    reduzindo a carga sobre o desenvolvedor humano.
 - Espera-se uma curva de aprendizado mais acentuada e menos repetição de falhas.
 
+================================================================================
+FASE 38 – DEFINIÇÃO DA PASTA PADRÃO PARA SCRIPTS PERSONALIZADOS (MCR SCRIPTS)
+Data: 23/04/2026
+================================================================================
+
+CONTEXTO:
+- Para facilitar a organização e localização dos arquivos criados durante o
+  desenvolvimento, foi solicitado que todos os novos scripts fossem salvos em
+  uma pasta dedicada.
+- O sistema Revscriptsys do Canary suporta subpastas dentro de `data/scripts/`,
+  permitindo esta separação.
+
+AÇÕES REALIZADAS:
+1. Atualização do `Projeto MCR.txt` com a nova Seção 2.12, definindo a pasta
+   `data/scripts/MCR Scripts/` como local padrão para scripts de sistemas,
+   bibliotecas e utilitários.
+2. Definição de `data/npc/scripts/MCR Scripts/` como local padrão para scripts
+   de NPC personalizados.
+3. Esclarecimento sobre exceções (modificações em arquivos originais e scripts
+   que dependem de caminhos específicos).
+
+RESULTADO:
+- Todos os futuros scripts criados em colaboração com o assistente serão
+  sugeridos diretamente no caminho `data/scripts/MCR Scripts/` ou
+  `data/npc/scripts/MCR Scripts/`.
+- A documentação reflete a nova diretriz de organização.
+================================================================================
