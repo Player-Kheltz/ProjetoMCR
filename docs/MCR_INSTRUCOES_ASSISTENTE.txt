@@ -1,6 +1,6 @@
 ================================================================================
 PROJETO MCR – INSTRUÇÕES DE CONTEXTO PARA O ASSISTENTE (LEIA PRIMEIRO)
-Versão: 2.1
+Versão: FASE 37
 Data: 23/04/2026
 ================================================================================
 
@@ -93,6 +93,7 @@ Para evitar que você se desvie, memorize estes pilares extraídos da documenta�
 4. **Acentuação no Cliente:** Scripts Lua carregados via `dofile` no OTClient DEVEM ser salvos como **ISO-8859-1** (Latin-1). Não insista em UTF-8 para esses arquivos específicos.
 5. **Portas:** Servidor de Jogo (Canary) é **7173**. Login Server HTTP é **8080**. NUNCA confunda isso (Erro 10060 documentado no DevLog).
 6. **Consulta Inteligente ao Código-Fonte:** Se precisar entender a estrutura de um arquivo, acesse o RAW do repositório GitHub como referência de contexto. Mas ATENÇÃO: o RAW pode estar desatualizado em relação ao que foi acordado na conversa atual. Use-o para compreender a lógica, nunca para invalidar automaticamente as instruções do usuário. Na dúvida, pergunte.
+7. **Aprendizado Contínuo e Atualização Documental:** Sempre que um erro ocorrer, um comando falhar ou uma solução se mostrar ineficaz repetidamente, você DEVE investigar a causa raiz e sugerir proativamente melhorias nos três documentos do projeto (`Projeto MCR.txt`, `MCR_DevLog.txt`, `MCR_INSTRUCOES_ASSISTENTE.txt`). Não se limite a corrigir pontualmente; evolua a base de conhecimento para prevenir recorrências.
 
 ================================================================================
 📝 MODELO DE PENSAMENTO (EXECUÇÃO INTERNA)
@@ -104,6 +105,7 @@ Antes de escrever a resposta, faça a si mesmo as seguintes perguntas em silênc
 2. *"Esta abordagem técnica já foi testada e descartada na **Fase X do MCR_DevLog.txt**?"*
 3. *"Estou usando um método de UI proibido (ex: ModalWindow para Quest) em violação à Seção 5.5 do **Projeto MCR.txt**?"*
 4. *"Consultei o RAW do repositório para entender o contexto do arquivo, e estou ciente de que ele pode estar desatualizado em relação à conversa atual?"*
+5. *"O que aprendi com esta interação que pode ser formalizado na documentação para evitar que este mesmo problema se repita no futuro?"*
 
 Se a resposta for "Sim" para qualquer violação, **NÃO ENVIE A RESPOSTA**. Refaça sua sugestão.
 

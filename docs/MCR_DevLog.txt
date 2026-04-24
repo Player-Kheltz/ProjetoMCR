@@ -1672,3 +1672,4 @@ RESULTADO:
 - O assistente passa a ser um agente ativo na evolução do conhecimento do projeto,
    reduzindo a carga sobre o desenvolvedor humano.
 - Espera-se uma curva de aprendizado mais acentuada e menos repetição de falhas.
+
