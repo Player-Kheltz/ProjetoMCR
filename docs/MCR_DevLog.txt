@@ -1700,3 +1700,28 @@ RESULTADO:
   `data/npc/scripts/MCR Scripts/`.
 - A documentação reflete a nova diretriz de organização.
 ================================================================================
+
+================================================================================
+FASE 39 – ATUALIZAÇÃO DAS INSTRUÇÕES DO ASSISTENTE PARA OBTENÇÃO VIA RAW
+Data: 24/04/2026
+================================================================================
+
+CONTEXTO:
+- O usuário relatou que, ao anexar os arquivos de documentação no chat, o conteúdo
+  não é carregado integralmente, prejudicando a compreensão do assistente.
+- Para resolver o problema, decidiu-se instruir o assistente a obter os arquivos
+  diretamente do repositório GitHub (RAW) quando apenas o MCR_INSTRUCOES_ASSISTENTE.txt
+  for fornecido.
+
+AÇÕES REALIZADAS:
+1. Atualização do arquivo `MCR_INSTRUCOES_ASSISTENTE.txt` (versão FASE 39):
+   - Adicionado bloco "IMPORTANTE – OBTENÇÃO DOS DOCUMENTOS QUANDO NÃO ANEXADOS
+     DIRETAMENTE" com os links RAW dos documentos principais.
+   - Atualizada a versão e data no cabeçalho.
+2. Documentada a alteração neste DevLog.
+
+RESULTADO:
+- Agora o assistente, ao receber apenas o MCR_INSTRUCOES_ASSISTENTE.txt, buscará
+  automaticamente os arquivos Projeto MCR.txt e MCR_DevLog.txt no GitHub RAW.
+- O usuário não precisará mais anexar todos os documentos, simplificando a interação.
+================================================================================

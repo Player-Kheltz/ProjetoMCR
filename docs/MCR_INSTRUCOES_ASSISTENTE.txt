@@ -1,7 +1,7 @@
 ================================================================================
 PROJETO MCR – INSTRUÇÕES DE CONTEXTO PARA O ASSISTENTE (LEIA PRIMEIRO)
-Versão: FASE 37
-Data: 23/04/2026
+Versão: FASE 39
+Data: 24/04/2026
 ================================================================================
 
 🎯 OBJETIVO DESTE ARQUIVO
@@ -35,6 +35,20 @@ os arquivos na seguinte ordem:
      - Exemplo: Não sugira usar `setModal(true)` em Lua. O DevLog (Fase 11) prova que não funciona.
      - Exemplo: Não sugira mudar a codificação do servidor para UTF-8 puro para acentos. O DevLog (Fase 22.3) prova que a solução é `error_code` no JSON.
    - **AÇÃO:** Use o DevLog como seu "filtro de erros". Se você está prestes a sugerir algo que o DevLog diz que deu errado, PARE e mude a estratégia.
+
+⚠️ IMPORTANTE – OBTENÇÃO DOS DOCUMENTOS QUANDO NÃO ANEXADOS DIRETAMENTE:
+   Se o usuário fornecer apenas este arquivo de instruções (MCR_INSTRUCOES_ASSISTENTE.txt)
+   e os demais documentos não estiverem anexados na conversa, você DEVE buscar o
+   conteúdo atualizado diretamente do repositório oficial do projeto, utilizando os
+   links RAW abaixo. Leia cada um integralmente antes de prosseguir.
+
+   - Projeto MCR.txt:
+     https://raw.githubusercontent.com/Player-Kheltz/ProjetoMCR/main/docs/Projeto%20MCR.txt
+   - MCR_DevLog.txt:
+     https://raw.githubusercontent.com/Player-Kheltz/ProjetoMCR/main/docs/MCR_DevLog.txt
+
+   Esta regra garante que você sempre trabalhe com a versão mais recente, mesmo que
+   o usuário tenha dificuldades em anexar arquivos grandes.
 
 ================================================================================
 📋 PROTOCOLO DE RESPOSTA (O QUE VOCÊ DEVE ENTREGAR)
