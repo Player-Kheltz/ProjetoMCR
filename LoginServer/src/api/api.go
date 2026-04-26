@@ -31,14 +31,15 @@ func Initialize(gConfigs configs.GlobalConfigs) *Api {
 
 	_api.DB = database.PullConnection(gConfigs)
 
-	// Inicia limpeza periódica de contas guest expiradas (a cada 5 min)
+		logger.Info("Iniciando rotina de limpeza de contas guest (a cada 5 minutos).")
 	go func(db *sql.DB) {
 		for {
 			time.Sleep(5 * time.Minute)
-			// Remove Almas de contas guest com mais de 30 min
-			_, err := db.Exec(`
+			logger.Info("Rotina de limpeza: removendo personagens convidados expirados...")
+
+			res, err := db.Exec(`
 				DELETE FROM players
-				WHERE name = 'Alma'
+				WHERE name LIKE 'Guest%'
 				AND account_id IN (
 					SELECT id FROM accounts
 					WHERE name LIKE 'guest_%'
@@ -47,10 +48,15 @@ func Initialize(gConfigs configs.GlobalConfigs) *Api {
 				)
 			`)
 			if err != nil {
-				logger.Error(fmt.Errorf("Limpeza de Almas guest: %v", err))
+				logger.Error(fmt.Errorf("Erro ao limpar players guest: %v", err))
+			} else {
+				n, _ := res.RowsAffected()
+				if n > 0 {
+					logger.Info(fmt.Sprintf("Limpeza de players guest: %d registros removidos.", n))
+				}
 			}
-			// Remove contas guest que ficaram sem personagens
-			_, err = db.Exec(`
+
+			res, err = db.Exec(`
 				DELETE FROM accounts
 				WHERE name LIKE 'guest_%'
 				AND created_at > 0
@@ -58,10 +64,16 @@ func Initialize(gConfigs configs.GlobalConfigs) *Api {
 				AND id NOT IN (SELECT DISTINCT account_id FROM players)
 			`)
 			if err != nil {
-				logger.Error(fmt.Errorf("Limpeza de contas guest: %v", err))
+				logger.Error(fmt.Errorf("Erro ao limpar accounts guest: %v", err))
+			} else {
+				n, _ := res.RowsAffected()
+				if n > 0 {
+					logger.Info(fmt.Sprintf("Limpeza de accounts guest: %d registros removidos.", n))
+				}
 			}
 		}
 	}(_api.DB)
+
 
 	ipLimiter := &limiter.IPRateLimiter{
 		Visitors: make(map[string]*limiter.Visitor),
