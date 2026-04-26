@@ -1,6 +1,6 @@
 <?xml version="1.0"?>
 <npcs>
-	<npc centerx="666" centery="663" centerz="15" radius="4">
-		<npc name="Oráculo dos Caminhos" x="0" y="0" z="15" spawntime="60" />
+	<npc centerx="668" centery="664" centerz="15" radius="1">
+		<npc name="Oraculo" x="0" y="0" z="15" spawntime="60" />
 	</npc>
 </npcs>

@@ -1,0 +1,337 @@
+================================================================================
+PROJETO MCR – GUIA DE INTERFACE (OTUI E LUA CLIENTE)
+Base: OTClient Redemption (opentibiabr/otclient)
+Arquivo: MCR - Guia de Interface (OTUI e Lua Cliente).txt
+================================================================================
+
+🎯 OBJETIVO DESTE GUIA
+Este documento é a autoridade máxima sobre a criação e modificação de interfaces
+no OTClient Redemption para o Projeto MCR. Ele cobre:
+
+A sintaxe correta de arquivos .otui (declarativa) e suas restrições severas.
+
+A criação de widgets via Lua (g_ui.createWidget, g_ui.displayUI).
+
+Métodos proibidos ou problemáticos na versão Redemption.
+
+Codificação obrigatória de scripts Lua com strings acentuadas (ISO-8859-1).
+
+Catálogo de fontes bitmap disponíveis e como usá-las.
+
+Ajustes finos de alinhamento (text-offset).
+
+Sempre que o assistente for criar uma janela, modificar um layout .otui ou
+escrever um script Lua que produza interface visual, DEVE consultar este guia.
+
+================================================================================
+⚠️ REGRAS DE REVISÃO PARA O ASSISTENTE (OTUI + LUA CLIENTE)
+================================================================================
+
+Sintaxe OTUI: NUNCA usar chaves { } para agrupar propriedades. NUNCA usar
+comentários com --. A indentação é EXCLUSIVAMENTE com espaços. Widgets devem
+ser filhos diretos da MainWindow para getChildById funcionar.
+
+Fontes: Usar apenas fontes do catálogo oficial (cipsoftFont, verdana--px,
+small--px, etc.). Não usar fontes TrueType sem teste prévio.
+
+Strings: Toda string fixa na interface (labels, botões) em PT-BR.
+
+Codificação dos scripts Lua carregados via dofile: ISO-8859-1 (Latin-1).
+Esta é uma regra absoluta, documentada no DevLog (Fases 8, 22.3).
+
+Métodos proibidos no Redemption: Não usar setModal(true), setSize(w,h),
+center(). Preferir propriedades OTML (modal: true, center: true) ou cálculo
+manual de posição (setPosition com coordenadas calculadas).
+
+Comunicação com servidor: Requisições HTTP.post devem ter callback onError.
+Listeners de Extended Opcode devem verificar se buffer não é nil.
+
+Não usar HorizontalLayout em .otui; usar anchors e margens.
+
+================================================================================
+📐 1. SINTAXE OTUI (ARQUIVOS .otui)
+================================================================================
+
+Arquivos .otui descrevem a hierarquia e as propriedades de widgets de forma
+declarativa. O parser do OTClient Redemption é extremamente restrito.
+
+REGRAS ABSOLUTAS:
+
+NÃO use comentários com --. O parser não os reconhece e gera erros.
+
+NÃO use chaves { } para aninhar estilos ou propriedades. Cada propriedade
+deve ser uma linha independente dentro do widget.
+
+Use APENAS espaços para indentação. Tabs podem causar "invalid indentation".
+
+Para strings fixas, use a propriedade text (ex.: text: Criar Conta). Evite
+!text, que tem comportamento inconsistente.
+
+Exemplo CORRETO de um arquivo .otui:
+
+MainWindow
+id: registerWindow
+width: 300
+height: 220
+modal: true
+center: true
+
+Label
+id: titleLabel
+text: Criação de Conta
+font: verdana-11px-rounded
+anchors.top: parent.top
+anchors.left: parent.left
+anchors.right: parent.right
+margin-top: 15
+
+TextEdit
+id: accountName
+font: verdana-10px
+anchors.top: titleLabel.bottom
+anchors.left: parent.left
+anchors.right: parent.right
+margin-top: 10
+margin-left: 20
+margin-right: 20
+
+Button
+id: createButton
+text: Criar Conta
+font: verdana-10px
+anchors.top: accountName.bottom
+anchors.left: parent.left
+anchors.right: parent.right
+margin-top: 15
+margin-left: 50
+margin-right: 50
+
+CARACTERÍSTICAS IMPORTANTES:
+
+Widgets são declarados como filhos diretos da janela principal (MainWindow).
+
+Cada widget tem um id único que permite recuperá-lo via getChildById.
+
+Ancoragem (anchors) define a posição relativa.
+
+Margens (margin-*) ajustam o espaçamento.
+
+O QUE NUNCA FAZER:
+MainWindow {
+id: registerWindow
+-- isso quebra
+}
+
+================================================================================
+🖼️ 2. CRIAÇÃO DE WIDGETS VIA LUA
+================================================================================
+
+Para janelas complexas, o .otui é preferível. Mas se for necessário criar
+widgets programaticamente, use g_ui.createWidget ou g_ui.displayUI.
+
+Exemplo de carregamento de .otui:
+lua
+local window = g_ui.displayUI('register_window.otui')
+local nameField = window:getChildById('accountName')
+local createButton = window:getChildById('createButton')
+
+Exemplo de criação programática (para casos simples):
+lua
+local window = g_ui.createWidget('MainWindow', rootWidget)
+window:setWidth(300)
+window:setHeight(220)
+-- NÃO usar window:setModal(true) – inválido no Redemption
+-- Para centralizar, calcular posição manualmente:
+local rootWidth = rootWidget:getWidth()
+local rootHeight = rootWidget:getHeight()
+local posX = (rootWidth - 300) / 2
+local posY = (rootHeight - 220) / 2
+window:setPosition({ x = posX, y = posY })
+
+Função segura para buscar widgets recursivamente:
+lua
+function recursiveGetChildById(widget, id)
+if widget:getId() == id then return widget end
+for i = 1, widget:getChildCount() do
+local child = widget:getChildByIndex(i)
+local found = recursiveGetChildById(child, id)
+if found then return found end
+end
+return nil
+end
+
+Esta função é uma camada extra de segurança para contornar problemas de
+hierarquia no .otui.
+
+================================================================================
+🔤 3. FONTES BITMAP DISPONÍVEIS (CATÁLOGO OFICIAL)
+================================================================================
+
+O OTClient utiliza fontes bitmap pré-renderizadas (.otfont). NÃO há suporte a
+font-size; o tamanho é intrínseco ao arquivo da fonte.
+
+Fontes recomendadas (testadas e funcionais):
+
+Nome da fonte	Tamanho	Uso sugerido
+cipsoftFont	~10px	Texto geral, padrão Tibia
+verdana-11px-rounded	11px	Títulos, destaques
+verdana-10px	10px	Corpo de texto, rótulos
+small-9px	9px	Textos pequenos, status
+sans-bold-16px	16px	Títulos principais
+pVerdana Bold-11px	11px	Títulos alternativos
+Fontes NÃO testadas (usar com cautela):
+
+Fontes TrueType (.ttf) na pasta data/fonts/ttf/ podem exigir configuração extra.
+Não as utilize sem teste explícito de compatibilidade.
+
+Regra prática: se não está na lista acima, NÃO use sem antes verificar no diretório
+data/fonts/otfont/ do seu OTClient.
+
+================================================================================
+📏 4. AJUSTE FINO DE ALINHAMENTO (TEXT-OFFSET)
+================================================================================
+
+A propriedade text-offset permite deslocar o texto dentro de widgets como TextEdit
+e Label. Sintaxe: text-offset: <horizontal> <vertical> (em pixels).
+
+Exemplo:
+text-offset: 0 1 → desloca 1 pixel para baixo, corrigindo alinhamento vertical
+
+Este recurso é valioso para centralizar visualmente o texto em campos de entrada
+com altura reduzida (ex.: 28px).
+
+================================================================================
+⚠️ 5. MÉTODOS E PRÁTICAS PROIBIDAS (COMPROVADOS NO DEVLOG)
+================================================================================
+
+A lista abaixo é baseada em falhas reais documentadas ao longo do desenvolvimento.
+O assistente JAMAIS deve sugerir estes métodos.
+
+Método/Prática	Motivo da proibição	Alternativa
+window:setModal(true)	Não funciona no Redemption (Fase 11)	modal: true no .otui
+window:center()	Não funciona no Redemption (Fase 11)	center: true no .otui ou setPosition manual
+window:setSize(300, 220)	Não aceita dois argumentos (Fase 11)	setWidth(300) e setHeight(220) separados
+Comentários -- no .otui	Parser quebra (Fase 21.3)	Evitar comentários; documentar fora do .otui
+Chaves { } no .otui	Parser quebra (Fase 21.3)	Estrutura plana com indentação
+HorizontalLayout	Não definido na versão usada (Fase 16)	Anchors + margens manuais
+Fontes TrueType sem teste	Compatibilidade não garantida (Fase 22)	Usar fontes bitmap do catálogo
+Strings UTF-8 em Lua cliente	Corrompe acentos (Fase 22.3)	Salvar script Lua como ISO-8859-1
+setAttribute em widgets	Comportamento inconsistente (Fase 2)	Usar propriedades OTUI ou setters dedicados
+================================================================================
+💻 6. CODIFICAÇÃO DE SCRIPTS LUA COM ACENTOS (REGRA CRÍTICA)
+================================================================================
+
+⚠️ Esta é uma das regras mais importantes e negligenciadas do projeto.
+
+Scripts .lua carregados pelo OTClient via dofile() ou como módulos são interpretados
+como LATIN-1 (ISO-8859-1), NÃO como UTF-8.
+
+Portanto:
+
+TODOS os scripts Lua que contêm strings acentuadas em PT-BR e são executados no
+lado do CLIENTE devem ser salvos como ISO-8859-1 (Latin-1).
+
+Isso inclui: registro.lua, entergame.lua, e qualquer módulo customizado.
+
+Se o arquivo for salvo como UTF-8, caracteres como "ç", "ã", "é" aparecerão
+como "Ã§", "Ã£", "Ã©" na interface.
+
+Ferramentas para salvar como ISO-8859-1:
+
+Notepad++: Codificação → Codificar em ANSI (que é Latin-1 no Windows Ocidental).
+
+VS Code: Clique em "UTF-8" na barra inferior → "Salvar com codificação" → "Western (ISO 8859-1)".
+
+Verificação rápida: abra o arquivo em um editor hex. O caractere "ç" deve ser
+representado pelo byte 0xE7 (e não 0xC3 0xA7 do UTF-8).
+
+ARQUIVOS QUE DEVEM SER ISO-8859-1 (lista não exaustiva):
+
+modules/client_entergame/registro.lua
+
+modules/client_entergame/entergame.lua
+
+Qualquer script que contenha strings com acentos mostradas na UI.
+
+EXCEÇÃO: Arquivos .otui podem ser UTF-8 sem BOM (o parser do OTUI trata corretamente).
+
+================================================================================
+🖥️ 7. FLUXO DO SALÃO DOS DESTINOS (INTEGRAÇÃO CLIENTE)
+================================================================================
+
+O cliente agora possui um botão "Salão dos Destinos" no lugar de "Criar Conta". O fluxo é:
+1. Botão chama EnterGame.openSalaoDestinos().
+2. A função esconde a janela de login e faz HTTP.get para /guest_login.
+3. Com as credenciais recebidas, chama EnterGame.doAutoLogin(account, password, character).
+4. doAutoLogin autentica via /login, obtém os dados do personagem e chama g_game.loginWorld diretamente.
+5. Após logout, EnterGame.showPanels decide se exibe a lista de personagens ou a tela de login, usando a flag isGuestSession.
+
+- Certifique-se de que entergame.lua esteja salvo como ISO-8859-1.
+- O .otui correspondente deve ter o botão com id="createAccountButton" (mantido para compatibilidade), texto "Salão dos Destinos" e onClick: EnterGame.openSalaoDestinos().
+- (Futuro) Um módulo adicional mascarará o nome "Guest_*" exibindo "Alma".
+
+================================================================================
+⚠️ ARMADILHAS E LIÇÕES APRENDIDAS (EXTRAÍDAS DO DEVLOG)
+================================================================================
+
+Erro "VerticalLayout is not defined": Causado por uso de layouts não suportados.
+Prefira sempre ancoragem manual (anchors) (Fase 2).
+
+Botão "Criar Conta" não funcionava: O evento onClick deve estar dentro do bloco
+do botão no .otui ou criado programaticamente com bind. Múltiplos comandos em
+onClick devem usar pipe | como separador (Fases 8, 11).
+
+Caminhos relativos no dofile: Dentro de módulos, o contexto de execução pode
+mudar. Use caminho absoluto com barra inicial (ex.: dofile('/registro.lua'))
+para garantir a localização correta (Fase 11).
+
+Widget não encontrado (nil): Se getChildById retorna nil, verifique se o widget
+é filho direto da janela. Use recursiveGetChildById como fallback (Fase 21.3).
+
+Janela não centralizava: center: true no .otui pode falhar em algumas versões.
+Calcule as coordenadas manualmente usando getWidth/getHeight do rootWidget (Fase 14).
+
+Notificações com acentos corrompidos: Resolvido com error_code no backend e
+mapeamento no cliente Lua ISO-8859-1. NUNCA envie strings acentuadas no JSON
+de resposta (Fase 22.3).
+
+================================================================================
+🔍 CHECKLIST DE REVISÃO PARA O ASSISTENTE (OTUI + LUA CLIENTE)
+================================================================================
+
+Antes de finalizar qualquer modificação em .otui ou script Lua cliente, o assistente
+DEVE verificar:
+
+- [ ] O arquivo .otui não contém comentários -- nem chaves { } e usa espaços para indentação?
+
+- [ ] Widgets usam text (não !text) e fontes do catálogo oficial?
+
+- [ ] A hierarquia é plana (filhos diretos da MainWindow) para getChildById funcionar?
+
+- [ ] Janelas modais usam modal: true e center: true (ou centralização manual)?
+
+- [ ] Não foi usado HorizontalLayout; a ancoragem é via anchors e margens?
+
+- [ ] Scripts Lua com acentos estão salvos como ISO-8859-1?
+
+- [ ] Métodos proibidos (setModal, setSize duplo, center) NÃO foram usados?
+
+- [ ] Comunicação HTTP.post tem callback onError? Listeners de opcode checam buffer nil?
+
+- [ ] Strings da interface estão em PT-BR e foram testadas com acentos?
+
+
+================================================================================
+📤 COMO ATUALIZAR O REPOSITÓRIO GIT
+================================================================================
+
+git add "OTClient/modules/client_entergame/registro.lua"
+git add "OTClient/modules/client_entergame/register_window.otui"
+git commit -m "feat(ui): ajustes na interface de registro"
+git push origin main
+
+⚠️ PowerShell: aspas duplas em caminhos com espaços.
+
+================================================================================
+FIM DO GUIA DE INTERFACE (OTUI E LUA CLIENTE)
+================================================================================

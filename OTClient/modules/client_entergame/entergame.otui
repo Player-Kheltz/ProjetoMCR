@@ -2,7 +2,6 @@ EnterGameWindow < MainWindow
   !text: tr('Enter Game')
   size: 236 316
 
-
 EnterGameButton < Button
   width: 64
 
@@ -30,16 +29,12 @@ EnterGameWindow
   size: 280 302
   @onEnter: EnterGame.doLogin()
 
-
-
   Label
     id: emailLabel
     !text: tr('Conta:') 
     anchors.left: parent.left
     anchors.top: parent.top
-
     opacity: 0.8
-
       
   Label
     id: passwordLabel
@@ -252,15 +247,13 @@ EnterGameWindow
 
   QtButton
     id: createAccountButton
-    !text: tr('Criar Conta')
+    !text: tr('Salão dos Destinos')
     anchors.left: parent.left
     anchors.bottom: prev.bottom
     margin-top: 9
     size: 86 20
-    @onClick: |
-      dofile('/modules/mcr_modules/registro.lua')
-      showRegisterWindow()  
-    
+    @onClick: EnterGame.openSalaoDestinos()
+
   QtButton
     id: btnCreateNewAccount
     !text: tr('Create New Account')
@@ -287,4 +280,3 @@ EnterGameWindow
     margin-top: 5
     color: green
     text-auto-resize: true
-

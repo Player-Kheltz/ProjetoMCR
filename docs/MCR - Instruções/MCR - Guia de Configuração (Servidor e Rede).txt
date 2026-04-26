@@ -1,0 +1,258 @@
+================================================================================
+PROJETO MCR – GUIA DE CONFIGURAÇÃO (SERVIDOR E REDE)
+Arquivo: MCR - Guia de Configuração (Servidor e Rede).txt
+================================================================================
+
+🎯 OBJETIVO DESTE GUIA
+Este documento reúne TODAS as configurações necessárias para que o servidor Canary, o
+Login Server e o ambiente de rede do Projeto MCR funcionem em harmonia. Ele cobre:
+
+- O arquivo config.lua do Canary (com cada parâmetro explicado).
+- A tabela obrigatória OTCFEATURES.
+- O arquivo .env do Login Server (variáveis de ambiente).
+- Portas, firewall e conectividade.
+- Configuração do banco de dados (acesso e charset).
+- Versionamento com Git (boas práticas).
+
+Toda vez que for necessário ajustar uma porta, adicionar uma flag ou depurar um erro
+de conexão, este guia é a referência primária.
+
+================================================================================
+⚠️ REGRAS DE REVISÃO PARA O ASSISTENTE (CONFIGURAÇÃO / INFRAESTRUTURA)
+================================================================================
+
+Ao sugerir qualquer alteração em arquivos de configuração, .env, regras de firewall ou
+ajustes no Git, o assistente DEVE:
+
+1. Jamais incluir senhas reais em texto. Utilize SEMPRE o placeholder <Senha>.
+2. Garantir que as portas mencionadas são EXATAMENTE:
+   - 7171 (status)
+   - 7172 (login – ProtocolLogin)
+   - 7173 (game – ProtocolGame)
+   - 8080 (HTTP – Login Server)
+   - 3306 (MySQL/MariaDB – somente interno)
+3. Verificar se as flags em OTCFEATURES no config.lua estão sincronizadas com o que o
+   OTClient realmente espera (conforme lista abaixo).
+4. Sempre que adicionar uma nova variável ao .env, incluir a documentação correspondente
+   e atualizar o arquivo .env.example (para manter o template sem segredos).
+5. Nas instruções de versionamento, lembrar que o PowerShell requer aspas duplas em
+   caminhos com espaços. Exemplo: git add "docs/Projeto MCR.txt"
+6. Ao configurar charset do banco, sempre forçar utf8mb4 (COLLATE utf8mb4_unicode_ci).
+
+================================================================================
+📄 1. CONFIGURAÇÃO DO CANARY (config.lua)
+================================================================================
+
+Este arquivo está localizado na raiz do servidor Canary (ProjetoMCR/Canary/config.lua).
+Abaixo, cada parâmetro obrigatório e seu respectivo valor no Projeto MCR.
+
+-- Conexão com o Banco de Dados
+mysqlHost = "127.0.0.1"
+mysqlUser = "root"
+mysqlPass = "<Senha>"             -- ⚠️ usar placeholder, senha real nunca em documentação pública
+mysqlDatabase = "BancoServer"
+mysqlPort = 3306
+mysqlInitCommand = "SET NAMES 'utf8mb4'"   -- Garante UTF-8 completo na sessão
+
+-- Autenticação e Criptografia
+passwordType = "sha1"             -- Hash de senhas (SHA1 compatível com Login Server)
+encryptionType = "aes"           -- Criptografia de rede (protocolo 15.00)
+
+-- Rede e Portas
+ip = "0.0.0.0"                   -- Essencial para aceitar conexões externas (inclusive localhost)
+statusPort = 7171                 -- Porta de status (opcional, mas configurada)
+loginPort = 7172                  -- Porta de login (usada pelo Login Server internamente)
+gamePort = 7173                   -- Porta do jogo (players se conectam a esta)
+-- Desnecessário expor statusPort se não houver ferramenta externa, mas manter não atrapalha.
+
+-- Identificação do Servidor
+serverName = "Projeto MCR"        -- Nome exibido no cliente
+ownerEmail = "admin@projetomcr.com"
+url = "http://projetomcr.com/"
+url_shop = "http://loja.projetomcr.com/"
+motd = "Bem-vindo ao Projeto MCR! Uma aventura fantasiosa te aguarda."
+
+-- Limites
+maxPlayers = 1000
+maxMessageBuffer = 5000
+
+-- Rates (multiplicadores de experiência, skill, etc.)
+rateExp = 5.0
+rateSkill = 3.0
+rateLoot = 2.0
+rateMagic = 3.0
+rateSpawn = 2.0
+
+-- PvP / Frag
+useFragHandler = true
+
+-- Recursos de Cliente (OTCFeatures) – ver seção 2 abaixo
+
+-- Outras
+enableLiveCasting = false
+showPlayerInfo = true
+sqlType = "mysql"
+
+----------------------------------------------------------------------
+⚠️ NOTA CRÍTICA: ip = "0.0.0.0" é necessário para evitar erro 10060 no
+   cliente mesmo em testes locais (Fase 18). O default 127.0.0.1 não
+   permite que o OTClient se conecte ao ProtocolGame em certas condições.
+----------------------------------------------------------------------
+
+================================================================================
+📋 2. TABELA OTCFEATURES (CONFIG.LUA)
+================================================================================
+
+Esta tabela informa ao OTClient quais recursos estendidos o servidor suporta.
+DEVE ser mantida exatamente como abaixo. Qualquer alteração aqui precisa ser
+refletida nos módulos do OTClient.
+
+lua
+OTCFEATURES = {
+    modalWindows = true,          -- Janelas modais (Banco, Loja, confirmações críticas)
+    extendedOpcode = true,        -- Comunicação por opcodes customizados (essencial para SQH)
+    changeMapAwareRange = true,
+    newWalking = false,           -- ⚠️ MANTENHA FALSE, a menos que o servidor tenha suporte compilado
+    newCreatureIcons = true,
+    newPartyList = true,
+    newBattlList = true,          -- Lista de batalha otimizada (dispensa game_battle)
+    shopModule = true,            -- Loja in-game
+    playerMounts = true,
+    playerAddons = true,
+    expertMode = true,
+    dailyReward = true,
+    imbuementSystem = true,
+    analytics = false             -- Sempre desabilitado
+}
+
+================================================================================
+🌐 3. LOGIN SERVER – ARQUIVO .env
+================================================================================
+
+Local: ProjetoMCR/LoginServer/.env
+
+Este arquivo contém variáveis de ambiente sensíveis. NÃO é versionado (está no
+.gitignore). Um template público está em LoginServer/.env.example.
+
+dotenv
+# Banco de dados (mesmo do Canary)
+MYSQL_DBNAME=BancoServer
+MYSQL_HOST=127.0.0.1
+MYSQL_PORT=3306
+MYSQL_USER=root
+MYSQL_PASS=<Senha>
+
+# Login Server
+LOGIN_IP=0.0.0.0
+LOGIN_HTTP_PORT=8080
+
+# Servidor de jogo (Canary) – informações enviadas ao cliente após autenticação
+SERVER_IP=127.0.0.1
+SERVER_NAME=ProjetoMCR
+SERVER_PORT=7173          # ⚠️ DEVE SER 7173 (gamePort), NUNCA 7172. Erro 10060 se errado.
+SERVER_LOCATION=Brasil
+VOCATIONS=1,2,3,4
+
+# Variável opcional: tempo de expiração de contas guest (em segundos). Padrão 1800 (30 min).
+GUEST_EXPIRATION=1800
+
+----------------------------------------------------------------------
+⚠️ LIÇÃO CRÍTICA: O campo SERVER_PORT é a porta do ProtocolGame (7173).
+   Na Fase 18, um valor errado (7172) causou timeout 10060.
+   Verifique SEMPRE essa variável após alterações no config.lua.
+----------------------------------------------------------------------
+
+================================================================================
+🔥 4. FIREWALL E CONECTIVIDADE
+================================================================================
+
+Para testes locais (tudo em 127.0.0.1), o firewall pode não bloquear, mas em
+produção ou rede local, as seguintes regras DEVEM ser aplicadas:
+
+- Porta 8080 (TCP): Acesso público – Login Server HTTP. Necessário para que o
+  cliente faça login e crie contas.
+- Porta 7172 (TCP): Comunicação interna entre Login Server e Canary (ProtocolLogin).
+  NÃO deve ser exposta ao público externo.
+- Porta 7173 (TCP): Acesso público – ProtocolGame. Players se conectam diretamente.
+- Porta 3306 (TCP): MySQL/MariaDB. JAMAIS exponha à internet.
+- A porta 8080 também é usada pelo cliente para chamar /guest_login (fluxo do Salão dos Destinos).
+
+No Windows, criar regra via PowerShell (Admin):
+  New-NetFirewallRule -DisplayName "MCR Game 7173" -Direction Inbound -LocalPort 7173 -Protocol TCP -Action Allow
+  New-NetFirewallRule -DisplayName "MCR HTTP 8080" -Direction Inbound -LocalPort 8080 -Protocol TCP -Action Allow
+
+Testar conectividade:
+  Test-NetConnection 127.0.0.1 -Port 7173
+
+Se falhar, verificar se o Canary está rodando e se ip = "0.0.0.0" está configurado.
+
+================================================================================
+🗄️ 5. BANCO DE DADOS – INFORMAÇÕES MÍNIMAS (Ver Guia [9] para detalhes)
+================================================================================
+
+- Caminho do schema: Canary/data/schema.sql (importar uma vez).
+- Login Server também usa o mesmo banco (BancoServer).
+- Charset obrigatório: utf8mb4 COLLATE utf8mb4_unicode_ci.
+  Comando para criar:
+  CREATE DATABASE BancoServer CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+- XAMPP (MariaDB): a senha do root é configurada via:
+  SET PASSWORD FOR 'root'@'localhost' = PASSWORD('<Senha>');
+- phpMyAdmin: configurar config.inc.php com $cfg['Servers'][$i]['password'] = '<Senha>';
+  e $cfg['Servers'][$i]['auth_type'] = 'config'; (para evitar tela de login).
+
+================================================================================
+📚 6. VERSIONAMENTO COM GIT (BOAS PRÁTICAS)
+================================================================================
+
+- O repositório já está estruturado. Os arquivos sensíveis NÃO são commitados:
+  .gitignore da raiz inclui:
+    Canary/config.lua
+    LoginServer/.env.txt
+    MyAAC/config.local.php
+- Sempre que alterar configurações, atualize também os arquivos de exemplo (.example).
+- Nomes de arquivos com espaços exigem aspas duplas no PowerShell:
+  git add "docs/MCR - Guia de Configuração (Servidor e Rede).txt"
+
+================================================================================
+⚠️ ARMADILHAS E LIÇÕES APRENDIDAS (EXTRAÍDAS DO DEVLOG)
+================================================================================
+
+- **SERVER_PORT errado**: Usar 7172 no .env causa erro 10060 (timeout) no cliente ao
+  tentar conectar ao jogo. O campo externalport na resposta de login deve ser 7173.
+  (Fase 18)
+- **ip = "127.0.0.1"**: Pode impedir conexões do OTClient mesmo no mesmo PC.
+  Sempre use ip = "0.0.0.0". (Fase 18)
+- **Senha do MariaDB**: O XAMPP atual usa MariaDB, e o comando ALTER USER não funciona.
+  Use SET PASSWORD FOR... (Fase 33)
+- **phpMyAdmin sem senha**: Se auth_type = 'config' e a senha não for configurada,
+  o acesso falha. Sempre ajustar config.inc.php. (Fase 33)
+- **Cache do OTClient**: Para evitar confusões durante testes, a pasta cache/ local
+  deve estar configurada (ver Guia de Compilação Cliente). (Fase 19)
+- **OTCFeatures.newWalking**: Manter false evita muitos problemas de sincronização.
+- **Firewall no Windows**: Mesmo em desenvolvimento, regras de firewall podem bloquear
+  as portas 7173 e 8080. Sempre verifique com Test-NetConnection. (Fase 18)
+- **Botão "Criar Conta" removido**: O cliente agora usa o "Salão dos Destinos" que chama /guest_login diretamente. Não há mais interface de registro tradicional.
+
+================================================================================
+🔍 CHECKLIST DE REVISÃO PARA O ASSISTENTE (CONFIGURAÇÃO / INFRAESTRUTURA)
+================================================================================
+
+Antes de finalizar qualquer alteração em arquivos de configuração ou sugestão de rede,
+o assistente DEVE verificar:
+
+- [ ] Senhas reais NUNCA aparecem no texto; placeholder <Senha> foi utilizado.
+
+- [ ] Portas mencionadas são exatamente: 7171 (status), 7172 (login), 7173 (game), 8080 (HTTP), 3306 (DB).
+
+- [ ] OTCFEATURES no config.lua estão sincronizadas com o cliente (newWalking=false, etc.).
+
+- [ ] Se uma nova variável de ambiente foi adicionada ao .env, o .env.example foi atualizado.
+
+- [ ] Comandos Git sugeridos estão com aspas duplas para caminhos com espaços (PowerShell).
+
+- [ ] Configuração de charset do banco como utf8mb4 foi mencionada.
+
+
+================================================================================
+FIM DO GUIA DE CONFIGURAÇÃO (SERVIDOR E REDE)
+================================================================================

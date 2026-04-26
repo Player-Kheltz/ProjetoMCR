@@ -1,5 +1,14 @@
 EnterGame = {}
 
+-- Tabela de mensagens de erro em português (ISO-8859-1)
+local ERROR_MESSAGES = {
+    account_name_taken = "O nome de conta já está em uso.",
+    password_too_weak = "A senha deve ter 8+ caracteres com letras e números.",
+    invalid_fields = "Preencha todos os campos corretamente.",
+    invalid_credentials = "Nome de conta ou senha incorretos.",
+    registration_success = "Conta criada com sucesso!"
+}
+
 -- private variables
 local loadBox
 local enterGame
@@ -8,6 +17,7 @@ local enterGameButton
 local clientBox
 local protocolLogin
 local motdEnabled = true
+local isGuestSession = false
 
 -- private functions
 local function onError(protocol, message, errorCode)
@@ -124,6 +134,270 @@ local function updateLabelText()
     end
 end
 
+-- =====================================================
+-- NOVA FUNÇÃO: openSalaoDestinos (chamada pelo botão)
+-- =====================================================
+function EnterGame.openSalaoDestinos()
+    EnterGame.clearCharacterList()   -- remove qualquer lista anterior
+    EnterGame.hide()  -- esconde a janela de login
+    local host = enterGame:getChildById('serverHostTextEdit'):getText()
+    local port = tonumber(enterGame:getChildById('serverPortTextEdit'):getText())
+    if not host or host == '' or not port then
+        displayErrorBox(tr('Erro'), 'Configure o servidor primeiro.')
+        return
+    end
+
+    isGuestSession = true
+    EnterGame.clearCharacterList()  -- garante que nenhuma lista antiga interfira
+
+    local guestLoginUrl = "http://" .. host .. ":" .. tostring(port) .. "/guest_login"
+    print(">>> [DEBUG] Solicitando conta guest: " .. guestLoginUrl)
+
+    HTTP.get(guestLoginUrl, function(response, err)
+        if err then
+            displayErrorBox(tr('Erro'), 'Falha ao conectar ao Salão dos Destinos.')
+            return
+        end
+
+        local success, data = pcall(json.decode, response)
+        if not success or not data or data.status ~= "success" then
+            displayErrorBox(tr('Erro'), 'Não foi possível obter uma conta convidada.')
+            return
+        end
+
+        print(">>> [DEBUG] Guest account obtida: " .. data.account)
+        EnterGame.doAutoLogin(data.account, data.password, data.character)
+    end)
+end
+
+-- =====================================================
+-- NOVA FUNÇÃO: doAutoLogin(account, password, character)
+-- =====================================================
+function EnterGame.doAutoLogin(account, password, character)
+    isGuestSession = true
+    local host = enterGame:getChildById('serverHostTextEdit'):getText()
+    local port = tonumber(enterGame:getChildById('serverPortTextEdit'):getText())
+
+    G.account = account
+    G.password = password
+    G.host = host
+    G.port = port
+    G.authenticatorToken = ''
+
+    local clientVersion = tonumber(clientBox:getText())
+    g_game.setClientVersion(clientVersion)
+    g_game.setProtocolVersion(g_game.getClientProtocolVersion(clientVersion))
+    g_game.chooseRsa(G.host)
+
+    local payload = json.encode({
+        email = account,
+        password = password,
+        type = "login"
+    })
+
+    local loginUrl = "http://" .. host .. ":" .. tostring(port) .. "/login"
+    print(">>> [DEBUG] Auto-login: " .. loginUrl)
+
+    HTTP.post(loginUrl, payload, function(response, err)
+        if err then
+            displayErrorBox(tr('Erro'), 'Falha na conexão com o servidor de login.')
+            return
+        end
+
+        local success, result = pcall(json.decode, response)
+        if not success then
+            displayErrorBox(tr('Erro'), 'Resposta inválida do servidor.')
+            return
+        end
+
+        if result.errorCode and result.errorCode ~= 0 then
+            local msg = ERROR_MESSAGES[result.error_code] or result.errorMessage or "Erro desconhecido."
+            displayErrorBox(tr('Erro'), msg)
+            return
+        end
+
+        local session = result.session
+        local playData = result.playdata
+
+        if not session or not playData then
+            displayErrorBox(tr('Erro'), 'Resposta incompleta do servidor.')
+            return
+        end
+
+        G.sessionKey = session.sessionkey
+
+        -- Monta a lista de personagens (apenas para achar o alvo)
+        local characters = {}
+        if playData.characters then
+            for _, char in ipairs(playData.characters) do
+                local world = nil
+                if playData.worlds then
+                    for _, w in ipairs(playData.worlds) do
+                        if w.id == char.worldid then
+                            world = w
+                            break
+                        end
+                    end
+                end
+                characters[#characters + 1] = {
+                    name = char.name,
+                    worldName = world and world.name or "Unknown",
+                    worldIp = world and (world.externaladdressprotected or world.ip) or "127.0.0.1",
+                    worldPort = world and (world.externalportprotected or world.port) or 7173
+                }
+            end
+        end
+
+        -- Encontra o personagem convidado
+        local targetChar = nil
+        for _, char in ipairs(characters) do
+            if char.name == character then
+                targetChar = char
+                break
+            end
+        end
+
+        if not targetChar then
+            displayErrorBox(tr('Erro'), 'Personagem convidado não encontrado.')
+            return
+        end
+
+        -- Conecta diretamente ao servidor de jogo
+        g_game.loginWorld(
+            G.account,
+            G.password,
+            targetChar.worldName,
+            targetChar.worldIp,
+            targetChar.worldPort,
+            targetChar.name,
+            G.authenticatorToken,
+            G.sessionKey
+        )
+
+        loadBox = displayCancelBox(tr('Please wait'), tr('Conectando ao servidor de jogo...'))
+        connect(loadBox, {
+            onCancel = function()
+                loadBox = nil
+                g_game.cancelLogin()
+                EnterGame.show()
+            end
+        })
+    end)
+end
+
+-- =====================================================
+-- LISTENER DO OPCODE 200 (MIGRAÇÃO FUTURA)
+-- =====================================================
+ProtocolGame.registerExtendedOpcode(200, function(protocol, opcode, buffer)
+    if not buffer then return end
+    local status, data = pcall(json.decode, buffer)
+    if not status then return end
+
+    if data.account and data.password then
+        g_game.logout(false)
+        scheduleEvent(function()
+            EnterGame.doAutoLogin(data.account, data.password, data.character)
+        end, 100)
+    end
+end)
+
+-- (Restante das funções originais do EnterGame permanecem inalteradas)
+
+-- public functions
+function EnterGame.init()
+    enterGame = g_ui.displayUI('entergame')
+    Keybind.new("Misc.", "Change Character", "Ctrl+G", "")
+    Keybind.bind("Misc.", "Change Character", {
+      {
+        type = KEY_DOWN,
+        callback = EnterGame.openWindow,
+      }
+    })
+
+    local account = g_settings.get('account')
+    local password = g_settings.get('password')
+    local host = g_settings.get('host')
+    local port = g_settings.get('port')
+    local stayLogged = g_settings.getBoolean('staylogged')
+    local autologin = g_settings.getBoolean('autologin')
+    local httpLogin = g_settings.getBoolean('httpLogin')
+    local clientVersion = g_settings.getInteger('client-version')
+
+    if not clientVersion or clientVersion == 0 then
+        clientVersion = 1500   -- Projeto MCR usa protocolo 15.00
+    end
+
+    if not port or port == 0 then
+        port = 8080            -- Porta padrão do Login Server
+    end
+
+    EnterGame.setAccountName(account)
+    EnterGame.setPassword(password)
+
+    enterGame:getChildById('serverHostTextEdit'):setText(host)
+    enterGame:getChildById('serverPortTextEdit'):setText(port)
+    enterGame:getChildById('autoLoginBox'):setChecked(autologin)
+    enterGame:getChildById('stayLoggedBox'):setChecked(stayLogged)
+    enterGame:getChildById('httpLoginBox'):setChecked(httpLogin)
+
+    local installedClients = {}
+    local amountInstalledClients = 0
+    for _, dirItem in ipairs(g_resources.listDirectoryFiles('/data/things/')) do
+        if tonumber(dirItem) then
+            installedClients[dirItem] = true
+            amountInstalledClients = amountInstalledClients + 1
+        end
+    end
+
+    clientBox = enterGame:getChildById('clientComboBox')
+
+    for _, proto in pairs(g_game.getSupportedClients()) do
+        local protoStr = tostring(proto)
+        if installedClients[protoStr] or amountInstalledClients == 0 then
+            installedClients[protoStr] = nil
+            clientBox:addOption(proto)
+        end
+    end
+
+    for protoStr, status in pairs(installedClients) do
+        if status then
+            print(string.format('Warning: %s recognized as an installed client, but not supported.', protoStr))
+        end
+    end
+
+    clientBox:setCurrentOption(clientVersion)
+
+    connect(clientBox, {
+        onOptionChange = EnterGame.onClientVersionChange
+    })
+
+    if Servers_init then
+        if table.size(Servers_init) == 1 then
+            local hostInit, valuesInit = next(Servers_init)
+            EnterGame.setUniqueServer(hostInit, valuesInit.port, valuesInit.protocol)
+            EnterGame.setHttpLogin(valuesInit.httpLogin)
+        elseif not host or host == "" then
+            local hostInit, valuesInit = next(Servers_init)
+            EnterGame.setDefaultServer(hostInit, valuesInit.port, valuesInit.protocol)
+            EnterGame.setHttpLogin(valuesInit.httpLogin)
+        end
+    else
+        EnterGame.toggleAuthenticatorToken(clientVersion, true)
+        EnterGame.toggleStayLoggedBox(clientVersion, true)
+    end
+
+    updateLabelText()
+
+
+    connect(g_game, {
+        onGameStart = EnterGame.hidePanels
+    })
+
+    if g_app.isRunning() and not g_game.isOnline() then
+        enterGame:show()
+    end
+end
+
 -- public functions
 function EnterGame.init()
     enterGame = g_ui.displayUI('entergame')
@@ -225,17 +499,41 @@ function EnterGame.init()
 end
 
 function EnterGame.hidePanels()
-    if g_modules.getModule("client_bottommenu"):isLoaded()  then
+    if loadBox then
+        loadBox:destroy()
+        loadBox = nil
+    end
+    if g_modules.getModule("client_bottommenu"):isLoaded() then
         modules.client_bottommenu.hide()
     end
     modules.client_topmenu.hide()
+    EnterGame.hide()   -- esconde a janela de login quando o jogo começa
 end
 
 function EnterGame.showPanels()
-    if g_modules.getModule("client_bottommenu"):isLoaded()  then
+    if g_modules.getModule("client_bottommenu"):isLoaded() then
         modules.client_bottommenu.show()
     end
     modules.client_topmenu.show()
+
+    if not g_game.isOnline() then
+        if isGuestSession then
+            EnterGame.clearCharacterList()
+            isGuestSession = false
+            EnterGame.show()
+        else
+            -- Conta normal: só mostra login se a lista não estiver visível
+            if not CharacterList.isVisible() then
+                EnterGame.show()
+            end
+        end
+    end
+end
+
+function EnterGame.clearCharacterList()
+    pcall(CharacterList.destroy)   -- ignora erro se a janela não existir
+    G.characters = nil
+    G.characterAccount = nil
 end
 
 function EnterGame.firstShow()
@@ -654,7 +952,7 @@ function EnterGame.doLogin()
     g_settings.set('port', G.port)
     g_settings.set('client-version', clientVersion)
 
-    -- Os assets s�o carregados automaticamente ao definir a vers�o do cliente
+    -- Os assets s�o carregados automaticamente ao definir a vers�o do cliente
     g_game.setClientVersion(clientVersion)
     g_game.setProtocolVersion(g_game.getClientProtocolVersion(clientVersion))
     g_game.chooseRsa(G.host)
@@ -685,7 +983,7 @@ function EnterGame.doLogin()
 
         if err then
             print(">>> [ERRO] HTTP POST falhou: " .. err)
-            onError(nil, "Falha na conex�o com o servidor de login.")
+            onError(nil, "Falha na conex�o com o servidor de login.")
             return
         end
 
@@ -693,7 +991,7 @@ function EnterGame.doLogin()
 
         local success, result = pcall(json.decode, response)
         if not success then
-            onError(nil, "Resposta inv�lida do servidor.")
+            onError(nil, "Resposta inv�lida do servidor.")
             return
         end
 

@@ -1,0 +1,237 @@
+================================================================================
+PROJETO MCR – GUIA DE TRADUÇÃO E LOCALIZAÇÃO (PT-BR)
+(Versão 2.1 – Ajuste de codificação e destaque no chat)
+Arquivo: MCR - Guia de Tradução e Localização (PT-BR).txt
+================================================================================
+
+🎯 OBJETIVO DESTE GUIA
+Este documento é a autoridade máxima sobre a correta aplicação do idioma Português
+do Brasil em TODAS as camadas do Projeto MCR. Ele define:
+
+- Quais elementos DEVEM estar em PT-BR.
+- Quais elementos PODEM permanecer em inglês.
+- A codificação correta de cada tipo de arquivo (UTF-8 com BOM, ISO-8859-1, UTF-8 sem BOM).
+- O protocolo de comunicação entre backend e frontend para evitar corrupção de acentos.
+- O uso correto do destaque no chat (apenas {chaves}).
+- Regras gramaticais e de estilo para manter a qualidade do texto.
+
+Este guia NÃO é opcional. Toda modificação no projeto DEVE passar por suas regras.
+
+================================================================================
+⚠️ REGRAS DE REVISÃO PARA O ASSISTENTE (TRADUÇÃO E LOCALIZAÇÃO)
+================================================================================
+
+Ao gerar QUALQUER texto, código, comentário ou mensagem para o Projeto MCR, o
+assistente DEVE:
+
+1. Escrever em português do Brasil CORRETO (ortografia, acentuação, pontuação,
+   concordância nominal e verbal).
+2. Identificar a camada em que o texto será usado e aplicar a codificação correta
+   (ver seção 2 – Codificação por Tipo de Arquivo).
+3. Nunca usar traduções automáticas grosseiras. Preferir linguagem natural,
+   coerente com a ambientação fantasiosa.
+4. Manter a consistência terminológica: usar os mesmos termos para os mesmos
+   conceitos em todo o projeto (ex.: "vocação" não "classe", "personagem" não "boneco").
+5. Respeitar a personalidade do NPC ao redigir diálogos (ver Guia de Narrativa).
+6. Na comunicação backend→frontend, JAMAIS enviar strings acentuadas em JSON.
+   Usar o padrão error_code (ver seção 4).
+7. No chat do jogo, destacar palavras importantes SOMENTE com {chaves}. NÃO usar
+   tags como `{{#RRGGBB}}` ou HTML.
+
+================================================================================
+📋 1. ESCOPO DE APLICAÇÃO DO PT-BR
+================================================================================
+
+Devem estar OBRIGATORIAMENTE em português:
+
+- Diálogos de NPC (npc:say, sendTextMessage para o jogador).
+- Descrições de itens (name, description).
+- Mensagens de sistema (broadcasts, MOTD, mensagens de login/logout).
+- Textos de janelas modais (títulos, botões, corpo do texto).
+- Labels em arquivos .otui (interface do cliente).
+- Notificações toast e HUD de missões.
+- Comentários em TODOS os arquivos de código (C++, Lua servidor, Lua cliente, Go).
+- Logs do servidor e do Login Server (mensagens de inicialização, erros).
+- Nomes de NPCs, monstros, locais e itens no mapa/XML.
+- Documentação do projeto (guias, DevLog, instruções).
+
+Podem permanecer em INGLÊS:
+
+- Nomes de variáveis, funções, classes, enums, namespaces (ex.: getPlayer, onLogin).
+- Palavras-chave das linguagens (if, return, function, end, class, package).
+- Chaves de configuração em tabelas (ex.: modalWindows = true).
+- Nomes de campos em JSON (ex.: "account", "password", "error_code").
+- Comandos SQL e nomes de tabelas/colunas (ex.: SELECT * FROM accounts).
+- Endpoints de API (/register, /login).
+
+================================================================================
+📝 2. CODIFICAÇÃO POR TIPO DE ARQUIVO
+================================================================================
+
+Esta é a seção MAIS CRÍTICA deste guia. A codificação errada é a causa número 1
+de bugs visuais (acentos corrompidos) no Projeto MCR.
+
+| Tipo de Arquivo                          | Codificação      | BOM?  | Exemplo                                |
+|------------------------------------------|------------------|-------|----------------------------------------|
+| Scripts Lua do CLIENTE (dofile, módulos) | ISO-8859-1       | Não   | registro.lua, entergame.lua            |
+| Scripts Lua do SERVIDOR (data/npc/, etc.)| ISO-8859-1       | Não   | oraculo.lua, npc_utils.lua, sereia_lunar.lua |
+| Código C++ (servidor e cliente)          | UTF-8            | COM   | canary_server.cpp, main.cpp            |
+| Código Go (Login Server)                 | UTF-8            | COM   | register.go, login.go                  |
+| Arquivos .otui (interface)               | UTF-8            | SEM   | register_window.otui                   |
+| Arquivos .xml (spawn, itens)             | UTF-8            | SEM   | MCR-npc.xml, items.xml                 |
+| Arquivos de configuração (.lua, .env)    | UTF-8            | SEM   | config.lua, .env                       |
+| Documentação (.txt)                      | UTF-8            | COM   | MCR - Guia de *.txt                    |
+
+Detalhamento:
+
+⚠️ ISO-8859-1 (SCRIPTS LUA – CLIENTE E SERVIDOR):
+Scripts Lua que contenham strings acentuadas e sejam exibidos ao jogador (tanto no
+cliente quanto no servidor) DEVEM ser salvos como ISO-8859-1 (Latin-1 / ANSI no Windows).
+Isso porque o OTClient interpreta todas as strings recebidas como Latin-1, mesmo
+quando originadas de um script do servidor.
+- Caracteres como 'ç', 'ã', 'é' são representados por um ÚNICO byte (ex.: 0xE7 = ç).
+- Se salvo como UTF-8, aparecerão como "Ã§", "Ã£", "Ã©" na interface.
+- Essa regra se aplica a todos os scripts Lua que geram texto visível ao jogador,
+  sejam eles do cliente (dofile) ou do servidor (data/npc/).
+
+⚠️ UTF-8 COM BOM (C++, GO):
+O compilador C++ e o compilador Go reconhecem o BOM e tratam o arquivo como UTF-8.
+Isso garante acentuação correta em logs e mensagens internas.
+
+⚠️ UTF-8 SEM BOM (OTUI, XML):
+Arquivos .otui e .xml são processados por parsers que podem rejeitar o BOM.
+Salvar sem BOM, mas manter como UTF-8.
+
+================================================================================
+🌐 3. COMUNICAÇÃO BACKEND → FRONTEND (EVITAR CORRUPÇÃO)
+================================================================================
+
+Devido à incompatibilidade entre o backend Go (UTF-8) e a interpretação do cliente
+Lua (ISO-8859-1 para respostas HTTP), strings acentuadas NÃO devem ser enviadas
+diretamente no JSON de resposta do Login Server.
+
+PROTOCOLO OBRIGATÓRIO (ERROR_CODE):
+
+1. O backend (Login Server) retorna um código de erro padronizado em INGLÊS,
+   SEM acentos, no campo "error_code".
+   Exemplo: "account_name_taken", "password_too_weak", "invalid_credentials".
+
+2. O cliente (Lua) possui uma TABELA DE MAPEAMENTO que traduz o error_code para
+   a mensagem em PT-BR (com acentos).
+   Exemplo:
+   lua
+   local ERROR_MESSAGES = {
+       account_name_taken = "O nome de conta já está em uso.",
+       password_too_weak = "A senha deve ter 8+ caracteres com letras e números.",
+       invalid_credentials = "Nome de conta ou senha incorretos.",
+       registration_success = "Conta criada com sucesso!"
+   }
+
+3. Esta tabela EXISTE no script Lua do cliente (registro.lua, entergame.lua, etc.),
+   que está salvo como ISO-8859-1. Portanto, as strings em PT-BR exibidas ao
+   jogador terão os acentos CORRETOS.
+
+4. NOVOS error_codes devem ser adicionados tanto no backend quanto na tabela de
+   mapeamento do cliente.
+
+================================================================================
+🔑 4. DESTAQUE NO CHAT
+================================================================================
+
+O OTClient suporta exclusivamente o destaque de palavras envolvidas por {chaves}.
+Esse realce é herdado do protocolo Tibia e não requer nenhuma modificação
+no cliente.
+
+Regras:
+- Utilize {chaves} para destacar ações ({aceitar}, {entregar}), itens
+  ({10 Poções de Vida}), locais ({Floresta Sombria}) e recompensas
+  ({500 pontos de experiência}).
+- NÃO utilize tags `{{#RRGGBB}}`, HTML, ou qualquer outra sintaxe – elas
+  não produzem efeito visual.
+
+================================================================================
+✍️ 5. ESTILO E QUALIDADE DO TEXTO
+================================================================================
+
+Além da correção gramatical, o texto do Projeto MCR deve:
+
+- Ser NATURAL: evitar traduções literais do inglês ("você completou a quest" soa
+  artificial; prefira "você concluiu a missão").
+- Ser COERENTE com o universo: um NPC ancião fala de forma mais formal; um goblin
+  mercador fala de forma mais tosca e coloquial.
+- Evitar estrangeirismos desnecessários: "missão" em vez de "quest", "elo" em vez
+  de "link", "guardião" em vez de "knight" (em contexto narrativo).
+- Usar o padrão culto da língua, mas com flexibilidade para personagens caricatos
+  (um bêbado pode falar errado; um dragão ancião pode usar arcaísmos).
+- Manter consistência: se um termo foi traduzido de uma forma, usar a mesma
+  tradução em todo o projeto.
+
+Lista de termos padronizados:
+- "vocação" (não "classe")
+- "personagem" (não "char", "boneco")
+- "missão" (não "quest", embora "quest" possa aparecer em comentários de código)
+- "servidor" (não "server")
+- "conta" (não "account")
+- "senha" (não "password")
+
+================================================================================
+⚠️ ARMADILHAS E LIÇÕES APRENDIDAS (EXTRAÍDAS DO DEVLOG)
+================================================================================
+
+- **Acentos corrompidos no cliente e servidor:** Scripts Lua de ambas as pontas
+  DEVEM ser salvos como ISO-8859-1 para evitar artefatos. (Fase 22.3, correção adicional)
+- **Mensagens do backend com acentos:** Enviar strings acentuadas no JSON do Login
+  Server resultava em "jÃi estÃi" no cliente. A solução foi o padrão error_code
+  com mapeamento no cliente. (Fase 22.3)
+- **Console do Canary com "Vers├úo":** Os logs em português apareciam corrompidos
+  porque o console do Windows usava CP 850. A solução foi adicionar
+  SetConsoleOutputCP(CP_UTF8) no main.cpp. (Fase 40)
+- **Arquivos Go com strings acentuadas:** Mesmo compilando corretamente, a saída
+  HTTP pode ser interpretada como Latin-1 pelo cliente. Por isso o padrão
+  error_code foi adotado também no Go. (Fase 22.3)
+- **Destaque no chat:** Apenas {chaves} são reconhecidas; qualquer tentativa de
+  usar `{{#RRGGBB}}` falha silenciosamente.
+- **ISO-8859-1 vs ANSI:** No Windows, "ANSI" é um apelido para a codificação
+  Windows-1252, que é um superset do ISO-8859-1. Salvar como "ANSI" no Notepad++
+  ou VS Code geralmente funciona, desde que não haja caracteres específicos do
+  Windows-1252 (como €, ‚, ƒ) nos scripts, o que é raro.
+
+================================================================================
+🔍 CHECKLIST DE REVISÃO PARA O ASSISTENTE (TRADUÇÃO E LOCALIZAÇÃO)
+================================================================================
+
+Este checklist DEVE ser aplicado a QUALQUER modificação, independentemente da
+camada, pois a localização é transversal.
+
+- [ ] Todo texto visível ao jogador está em PT-BR com acentuação correta?
+
+- [ ] Comentários de código estão em PT-BR (exceto nomes de variáveis)?
+
+- [ ] A codificação do arquivo está correta conforme a tabela da Seção 2?
+
+- [ ] Scripts Lua (cliente e servidor) estão salvos como ISO-8859-1?
+
+- [ ] Arquivos .otui estão salvos como UTF-8 sem BOM?
+
+- [ ] Strings enviadas do backend (Go) usam o padrão error_code (sem acentos)?
+
+- [ ] O mapeamento error_code → mensagem PT-BR existe no cliente Lua?
+
+- [ ] Destaque no chat usa apenas {chaves}?
+
+- [ ] O texto soa NATURAL e COERENTE com o universo MCR?
+
+- [ ] A terminologia está padronizada (vocação, personagem, missão)?
+
+
+================================================================================
+📤 COMO ATUALIZAR O REPOSITÓRIO GIT
+================================================================================
+
+  git add "docs/MCR - Guia de Tradução e Localização (PT-BR).txt"
+  git commit -m "docs: atualiza guia de tradução com ISO-8859-1 universal e destaque por {chaves}"
+  git push origin main
+
+================================================================================
+FIM DO GUIA DE TRADUÇÃO E LOCALIZAÇÃO (PT-BR)
+================================================================================

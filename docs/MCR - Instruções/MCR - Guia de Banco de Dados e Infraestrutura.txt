@@ -1,0 +1,242 @@
+================================================================================
+PROJETO MCR – GUIA DE BANCO DE DADOS E INFRAESTRUTURA
+Arquivo: MCR - Guia de Banco de Dados e Infraestrutura.txt
+================================================================================
+
+🎯 OBJETIVO DESTE GUIA
+Fornecer todas as informações, procedimentos e regras para configurar, manter e
+modificar o banco de dados do Projeto MCR (MySQL/MariaDB via XAMPP). Este guia
+também cobre a infraestrutura associada: phpMyAdmin, backups, charset e a
+integração com o servidor Canary e o Login Server.
+
+================================================================================
+⚠️ REGRAS DE REVISÃO PARA O ASSISTENTE (BANCO DE DADOS E INFRA)
+================================================================================
+
+Ao sugerir QUALQUER alteração no banco de dados ou na infraestrutura, o assistente DEVE:
+
+JAMAIS incluir senhas reais em texto. Usar SEMPRE o placeholder <Senha>.
+
+Garantir que toda nova tabela, coluna ou banco seja criado com:
+CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci.
+
+Lembrar que o XAMPP atual utiliza MariaDB, e a sintaxe de alguns comandos
+difere do MySQL puro (ex.: SET PASSWORD FOR... em vez de ALTER USER).
+
+Incluir o comando SQL exato para qualquer modificação estrutural.
+
+Recomendar backup ANTES de qualquer operação destrutiva (DROP, DELETE sem WHERE).
+
+Manter a compatibilidade com o schema do Canary 3.4.1 (tabelas accounts, players,
+etc.) e com as consultas do Login Server.
+
+Documentar novos campos ou tabelas para que o assistente saiba da sua existência
+em interações futuras.
+
+================================================================================
+🗄️ 1. AMBIENTE: XAMPP (MARIADB)
+================================================================================
+
+O Projeto MCR utiliza o XAMPP como stack de desenvolvimento local, que fornece
+o MariaDB (fork do MySQL) e o phpMyAdmin.
+
+Instalação:
+
+Versão: XAMPP 8.2.12 (ou superior compatível).
+
+Local: D:\Programas\Xampp (ajustar conforme o ambiente).
+
+Componentes instalados: MySQL e phpMyAdmin (Apache opcional para o MyAAC).
+
+Configuração do MariaDB (my.ini):
+
+Local do arquivo: D:\Programas\Xampp\mysql\bin\my.ini
+
+Parâmetros obrigatórios:
+[client]
+default-character-set = utf8mb4
+
+[mysql]
+default-character-set = utf8mb4
+
+[mysqld]
+character-set-server = utf8mb4
+collation-server = utf8mb4_unicode_ci
+skip-character-set-client-handshake
+init-connect = 'SET NAMES utf8mb4 COLLATE utf8mb4_unicode_ci'
+
+Essas configurações garantem que todas as conexões usem UTF-8 completo, sem
+depender de configuração manual em cada sessão.
+
+Definição da Senha do Root (MariaDB):
+SET PASSWORD FOR 'root'@'localhost' = PASSWORD('<Senha>');
+⚠️ DIFERENÇA CRÍTICA: O comando ALTER USER ... IDENTIFIED WITH mysql_native_password
+NÃO funciona no MariaDB. Use SEMPRE SET PASSWORD FOR... (Fase 33)
+
+================================================================================
+🛠️ 2. CRIAÇÃO DO BANCO DE DADOS
+================================================================================
+
+O banco de dados oficial do Projeto MCR se chama "BancoServer".
+
+Comando de criação:
+CREATE DATABASE BancoServer CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+
+Por que utf8mb4_unicode_ci e não utf8mb4_general_ci?
+
+unicode_ci oferece suporte superior a caracteres acentuados do português (ç, ã, õ),
+tratando 'c' e 'ç' como letras distintas e ordenando corretamente.
+
+É o padrão recomendado para aplicações multilíngues e localizadas.
+
+================================================================================
+📜 3. SCHEMA DO BANCO DE DADOS
+================================================================================
+
+O schema principal está no arquivo schema.sql, fornecido com o Canary v3.4.1.
+Local: ProjetoMCR/Canary/data/schema.sql
+
+Principais tabelas e suas funções:
+
+accounts: armazena contas de jogador. Colunas: id, name, password (hash SHA1), email (vazio).
+
+players: armazena personagens. Colunas: id, name, account_id, level, vocation, sex, posx, posy, posz, town_id, etc.
+
+É complementado por dezenas de outras tabelas para houses, guilds, store, daily rewards, etc.
+
+O Login Server acessa as mesmas tabelas accounts e players. Qualquer alteração
+nessas tabelas DEVE ser sincronizada com o código do Login Server.
+
+Verificação de compatibilidade:
+
+O Canary 3.4.1 NÃO possui a coluna "lastlogin" na tabela players. O Login Server
+foi ajustado para não referenciar essa coluna. Se o schema for atualizado, verificar
+novamente. (Fase 10)
+
+O campo "email" na tabela accounts é mantido como string vazia, pois o MCR não
+utiliza e-mail para autenticação.
+
+- **accounts**: agora possui a coluna `created_at` (INT, default 0) para controle de expiração de contas temporárias.
+- **Rotina de limpeza** (executada no Login Server) remove contas com prefixo `guest_` e `created_at` anterior a 30 minutos, junto com seus personagens.
+
+================================================================================
+🔐 4. phpMyAdmin
+================================================================================
+
+URL: http://localhost/phpmyadmin (se o Apache estiver rodando).
+
+Configuração do acesso (config.inc.php):
+Local: D:\Programas\Xampp\phpMyAdmin\config.inc.php
+
+Adicionar/alterar as linhas:
+$cfg['Servers'][$i]['auth_type'] = 'config';
+$cfg['Servers'][$i]['user'] = 'root';
+$cfg['Servers'][$i]['password'] = '<Senha>';
+
+⚠️ Se auth_type = 'config' e a senha NÃO for configurada, o phpMyAdmin tentará
+conectar sem senha e falhará com "using password: NO". (Fase 33)
+
+================================================================================
+💾 5. BACKUP E RESTAURAÇÃO
+================================================================================
+
+Backup (exportar):
+mysqldump -u root -p --single-transaction --routines --triggers --events --default-character-set=utf8mb4 BancoServer > backup_BancoServer_YYYYMMDD.sql
+
+Restauração (importar):
+mysql -u root -p --default-character-set=utf8mb4 BancoServer < backup_BancoServer_YYYYMMDD.sql
+
+Procedimento recomendado:
+
+Fazer backup ANTES de qualquer alteração no schema.
+
+Manter backups datados em local seguro.
+
+Testar a restauração em um banco secundário antes de aplicar em produção.
+
+================================================================================
+🔗 6. INTEGRAÇÃO COM CANARY E LOGIN SERVER
+================================================================================
+
+O Canary e o Login Server compartilham o mesmo banco de dados (BancoServer).
+
+Configuração no Canary (config.lua):
+mysqlHost = "127.0.0.1"
+mysqlUser = "root"
+mysqlPass = "<Senha>"
+mysqlDatabase = "BancoServer"
+mysqlPort = 3306
+mysqlInitCommand = "SET NAMES 'utf8mb4'"
+
+Configuração no Login Server (.env):
+MYSQL_DBNAME=BancoServer
+MYSQL_HOST=127.0.0.1
+MYSQL_PORT=3306
+MYSQL_USER=root
+MYSQL_PASS=<Senha>
+
+Ambos os sistemas precisam estar rodando para o fluxo completo de autenticação
+e jogo funcionar.
+
+================================================================================
+⚠️ ARMADILHAS E LIÇÕES APRENDIDAS (EXTRAÍDAS DO DEVLOG)
+================================================================================
+
+MariaDB vs MySQL: O XAMPP atual usa MariaDB. O comando ALTER USER não funciona.
+Use SET PASSWORD FOR 'root'@'localhost' = PASSWORD('senha'); (Fase 33)
+
+Acesso negado (Access denied): Senha incorreta no config.lua ou .env.
+Verificar se a senha foi definida no MariaDB e se os serviços estão rodando. (Fase 33)
+
+Erro 10061 (Can't connect): O serviço MySQL/MariaDB não está rodando.
+Iniciar pelo XAMPP Control Panel. (Fase 33)
+
+Coluna lastlogin inexistente: O schema do Canary 3.4.1 não possui essa coluna.
+O Login Server foi ajustado para removê-la da consulta. Ao atualizar o schema,
+verificar novamente. (Fase 10)
+
+Charset incorreto: Dados salvos com charset errado (latin1) podem corromper
+caracteres acentuados. Sempre force utf8mb4 em todas as camadas. (Fase 32)
+
+phpMyAdmin sem senha configurada: Mesmo com senha no MySQL, o phpMyAdmin
+precisa da senha no config.inc.php. (Fase 33)
+
+Personagens de teste: Para testar o fluxo de criação de personagem, é útil
+criar personagens manualmente via SQL:
+INSERT INTO players (name, account_id, level, vocation, sex, posx, posy, posz, town_id, ...) VALUES (...);
+
+- Coluna created_at: Necessária para expiração de contas guest. Deve ser adicionada manualmente caso o schema não a possua.
+
+================================================================================
+🔍 CHECKLIST DE REVISÃO PARA O ASSISTENTE (BANCO DE DADOS E INFRA)
+================================================================================
+
+- [ ] Senhas reais NÃO aparecem; placeholder <Senha> usado?
+
+- [ ] Todo novo banco/tabela/coluna criado com CHARSET utf8mb4 COLLATE utf8mb4_unicode_ci?
+
+- [ ] Sintaxe compatível com MariaDB (SET PASSWORD FOR, não ALTER USER)?
+
+- [ ] Comandos SQL fornecidos na íntegra?
+
+- [ ] Recomendação de backup antes de operações destrutivas?
+
+- [ ] Compatibilidade mantida com schema do Canary 3.4.1 e Login Server?
+
+- [ ] Novas colunas/tabelas documentadas para referência futura?
+
+
+================================================================================
+📤 COMO ATUALIZAR O REPOSITÓRIO GIT
+================================================================================
+
+git add "docs/MCR - Guia de Banco de Dados e Infraestrutura.txt"
+git commit -m "docs: adiciona guia de banco de dados e infraestrutura"
+git push origin main
+
+⚠️ Arquivos de configuração com senhas (config.lua, .env) NÃO são versionados.
+Apenas templates (.example) são commitados.
+
+================================================================================
+FIM DO GUIA DE BANCO DE DADOS E INFRAESTRUTURA
+================================================================================

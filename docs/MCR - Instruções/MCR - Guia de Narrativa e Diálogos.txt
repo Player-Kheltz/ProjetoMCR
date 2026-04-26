@@ -1,0 +1,301 @@
+================================================================================
+PROJETO MCR – GUIA DE NARRATIVA E DIÁLOGOS
+(Versão 2.0 – Atualizada para a API Canary 3.4.1 e ISO-8859-1)
+Arquivo: MCR - Guia de Narrativa e Diálogos.txt
+================================================================================
+
+🎯 OBJETIVO DESTE GUIA
+Este guia é a bússola narrativa do Projeto MCR. Define como os NPCs devem
+falar, pensar e reagir dentro do universo de fantasia original "Aventura Fantasiosa",
+utilizando a API real do Canary 3.4.1 (Game.createNpcType) e a codificação
+ISO-8859-1 obrigatória para scripts que exibem strings ao jogador.
+
+Conteúdo:
+- Esqueleto funcional de NPC (nova API).
+- Biblioteca npc_utils.lua (sinônimos, pronomes, variação).
+- Sistema de destaque de palavras com {chaves} (compatível com o OTClient).
+- Múltiplas falas com npcHandler:say({...}).
+- Regras para criação/modificação de diálogos.
+
+================================================================================
+⚠️ REGRAS DE REVISÃO PARA O ASSISTENTE (NARRATIVA E DIÁLOGOS)
+================================================================================
+
+Ao criar ou modificar QUALQUER script de NPC (.lua) no servidor, o assistente DEVE:
+
+1. Todo texto exibido ao jogador em PT-BR impecável, com acentuação correta.
+   O arquivo DEVE ser salvo como ISO-8859-1 (Latin-1). Strings com acentos
+   salvos em UTF-8 PROVOCAM CORRUPÇÃO no cliente (Fase 22.3, verificação do usuário).
+
+2. Usar OBRIGATORIAMENTE a API moderna:
+   - Criar o tipo com Game.createNpcType(npcName)
+   - Atribuir todos os callbacks de engine (onThink, onAppear, onDisappear,
+     onMove, onSay, onCloseChannel) delegando ao npcHandler.
+   - Registrar o NPC com npcType:register(npcConfig).
+   - Usar a assinatura correta do creatureSayCallback: (npc, player, type, msg).
+   - npcHandler:say aceita string única ou tabela de strings com delay.
+
+3. Usar a biblioteca npc_utils.lua para:
+   - Reconhecimento flexível (NpcUtils.correspondeAcao).
+   - Pronomes, artigos e vocativos (getTratamento).
+   - Frases variadas (escolherFraseVariada).
+
+4. Palavras importantes no chat DEVEM ser destacadas com {chaves}, que o
+   OTClient Redemption exibe como destaque visual automático (padrão Tibia).
+   Exemplos: {aceitar}, {missão}, {Lágrimas de Sereia}.
+
+5. Diálogos NÃO devem usar addEvent manual; para sequências de falas,
+   utilize a capacidade do handler de receber uma tabela de strings.
+
+6. Toda interação administrativa (loja, banco) pode usar janela modal, mas
+   DEVE ser precedida de uma fala narrativa no chat.
+
+7. Incluir prints de debug (prefixo "DEBUG:") em todos os callbacks do NPC,
+   especialmente em creatureSayCallback, greetCallback e farewellCallback,
+   documentando a entrada de cada bloco condicional, mudanças de tópico e
+   decisões tomadas. Os prints devem ser em português, com os valores das
+   variáveis relevantes.
+
+================================================================================
+🌌 1. TOM DE VOZ E AMBIENTAÇÃO – O UNIVERSO MCR
+================================================================================
+
+O Projeto MCR se passa em um universo de fantasia original. NPCs NÃO são
+terminais de missão, mas habitantes vivos. Ao criar um NPC, reflita:
+- Qual a história dele dentro do mundo?
+- Como ele reage a guerreiros, magos, druidas?
+- Qual seu medo, objetivo, mania?
+
+================================================================================
+📚 2. BIBLIOTECA NPC_UTILS.LUA (OBRIGATÓRIA)
+================================================================================
+
+Arquivo: data/MCR Scripts/npc_utils.lua
+Salvar como: ISO-8859-1
+
+Conteúdo completo (já documentado no guia anterior, sem alterações). Suas funções
+essenciais: NpcUtils.correspondeAcao, NpcUtils.getTratamento, NpcUtils.escolherFraseVariada.
+
+================================================================================
+🏗️ 3. ESQUELETO FUNCIONAL DE NPC (API REAL)
+================================================================================
+
+TODO script de NPC deve seguir o modelo abaixo. Comentários em PT-BR,
+nomes de variáveis em inglês. Salve o arquivo como ISO-8859-1.
+
+----------------------------------------------------------------------
+--[[
+Projeto: MCR
+NPC: Canary (exemplo educativo)
+Descrição: NPC de demonstração usando a API real do Canary 3.4.1.
+--]]
+
+local npcName = "MeuNPC"
+local npcType = Game.createNpcType(npcName)
+local npcConfig = {}
+
+npcConfig.name = npcName
+npcConfig.description = npcName
+npcConfig.health = 100
+npcConfig.maxHealth = 100
+npcConfig.outfit = {
+    lookType = 128, lookHead = 0, lookBody = 0,
+    lookLegs = 0, lookFeet = 0, lookAddons = 2
+}
+-- (shop, voices, sounds, flags conforme necessário)
+
+local keywordHandler = KeywordHandler:new()
+local npcHandler = NpcHandler:new(keywordHandler)
+
+-- Callbacks obrigatórios
+npcType.onThink = function(npc, interval)
+    npcHandler:onThink(npc, interval)
+end
+npcType.onAppear = function(npc, creature)
+    npcHandler:onAppear(npc, creature)
+end
+npcType.onDisappear = function(npc, creature)
+    npcHandler:onDisappear(npc, creature)
+end
+npcType.onMove = function(npc, creature, fromPosition, toPosition)
+    npcHandler:onMove(npc, creature, fromPosition, toPosition)
+end
+npcType.onSay = function(npc, creature, type, message)
+    npcHandler:onSay(npc, creature, type, message)
+end
+npcType.onCloseChannel = function(npc, player)
+    npcHandler:onCloseChannel(npc, player)
+end
+
+-- Opcional: onBuyItem, onSellItem, onCheckItem para NPCs com loja
+
+-- Saudação
+local function greetCallback(npc, player)
+    npcHandler:setMessage(MESSAGE_GREET, "Olá |PLAYERNAME|! Em que posso ajudar?")
+    return true
+end
+npcHandler:setCallback(CALLBACK_GREET, greetCallback)
+
+-- Conversa (ASSINATURA CORRETA)
+local function creatureSayCallback(npc, player, type, msg)
+    if not npcHandler:checkInteraction(npc, player) then return false end
+
+    local playerId = player:getId()
+
+    if NpcUtils.correspondeAcao(msg, {"missão", "ajuda", "tarefa"}) then
+        -- Uso de tabela para múltiplas falas com 3 segundos de intervalo
+        npcHandler:say({
+            "Ah, um aventureiro em busca de propósito!",
+            "Posso lhe confiar uma {missão} perigosa. Você {aceita}?"
+        }, npc, player, 3000)
+        npcHandler:setTopic(playerId, 1)
+    elseif npcHandler:getTopic(playerId) == 1 and NpcUtils.correspondeAcao(msg, {"aceitar", "sim", "aceito"}) then
+        npcHandler:say("Que os ventos lhe guiem! Vá até a {Floresta Sussurrante} e colete {5 Folhas Etéreas}.", npc, player)
+        npcHandler:setTopic(playerId, 0)
+    elseif NpcUtils.correspondeAcao(msg, {"sair", "tchau", "adeus"}) then
+        npcHandler:say("Até a próxima, bravo aventureiro.", npc, player)
+        npcHandler:closeNpc(npc, player)
+    end
+
+    return true
+end
+npcHandler:setCallback(CALLBACK_MESSAGE_DEFAULT, creatureSayCallback)
+
+-- Mensagens de despedida e abandono
+npcHandler:setMessage(MESSAGE_FAREWELL, "Volte sempre!")
+npcHandler:setMessage(MESSAGE_WALKAWAY, "Foi embora sem se despedir...")
+npcHandler:addModule(FocusModule:new(), npcConfig.name, true, true, true)
+
+-- Registrar NPC
+npcType:register(npcConfig)
+----------------------------------------------------------------------
+
+================================================================================
+🔤 4. CODIFICAÇÃO ISO-8859-1 (REGRA ABSOLUTA)
+================================================================================
+
+Após repetidos problemas de acentuação (caracteres como "Ã§", "Ã£" aparecendo
+para o jogador), ficou comprovado que:
+
+- Scripts Lua do SERVIDOR que contêm strings exibidas ao jogador (diálogos,
+  mensagens) DEVEM ser salvos como ISO-8859-1 (Latin-1).
+- O mesmo vale para scripts Lua do CLIENTE (registro.lua, entergame.lua).
+- Arquivos .otui e .xml continuam UTF-8 sem BOM; código C++ e Go permanecem
+  UTF-8 com BOM.
+
+Use Notepad++ (Codificação → Codificar em ANSI) ou VS Code ("Salvar com codificação"
+→ "Western (ISO 8859-1)").
+
+================================================================================
+🗣️ 5. RECONHECIMENTO FLEXÍVEL DE PALAVRAS-CHAVE
+================================================================================
+
+NUNCA faça `if msg == "missao"`. SEMPRE use:
+`if NpcUtils.correspondeAcao(msg, {"missao", "quest", "tarefa", "trabalho", "ajuda"}) then`
+
+Inclua no mínimo 7 sinônimos (mas sempre tentar o adicionar o maior número possível de sinônimos), variações regionais e em inglês (ex.: "buy", "comprar",
+"adquirir"). A função já trata case-insensitive e palavra inteira.
+
+================================================================================
+👤 6. PERSONALIZAÇÃO POR SEXO E VOCAÇÃO (getTratamento)
+================================================================================
+
+A função retorna artigo, pronome, possessivo e vocativo fantástico baseado na
+vocação. Exemplo:
+```lua
+local tr = NpcUtils.getTratamento(player)
+npcHandler:say("Seja bem-vind" .. tr.sufixoVoc .. ", " .. tr.artigo .. " " .. tr.vocativo .. "!", npc, player)
+Use em toda saudação, despedida e entrega de missão.
+
+================================================================================
+🎲 7. VARIAÇÃO DE FRASES (escolherFraseVariada)
+================================================================================
+
+Mantenha pelo menos 3 frases diferentes para cada situação (saudação, agradecimento,
+despedida) e escolha aleatoriamente. Exemplo:
+
+lua
+local frasesBomDia = {
+    "Bom dia, %s! O que deseja?",
+    "Ah, %s! Quais ventos o trazem aqui?",
+    "Saudações, %s. Precisa de algo?"
+}
+npcHandler:say(NpcUtils.escolherFraseVariada(frasesBomDia, player), npc, player)
+================================================================================
+🔑 8. DESTAQUE DE PALAVRAS COM {CHAVES} (COMPROVADO)
+================================================================================
+
+O OTClient Redemption reconhece palavras entre {chaves} como destaque visual
+(geralmente azul ou sublinhado), herança do protocolo Tibia. USE ISSO para
+indicar ao jogador o que ele pode ou deve fazer.
+
+Convenção MCR:
+
+Ações que o jogador deve digitar: {aceitar}, {entregar}, {missão}
+
+Itens de quest: {5 Lágrimas de Sereia}
+
+Locais: {Lago dos Reflexos}
+
+Recompensas: {500 pontos de experiência}
+
+Não use tags {{#RRGGBB}} – NÃO SÃO SUPORTADAS e não causam efeito.
+
+Exemplo completo:
+
+lua
+npcHandler:say("Preciso que vá até a {Torre do Astrônomo} e colete {10 Pedras Lunares}. Você {aceita}?", npc, player)
+================================================================================
+⚠️ ARMADILHAS E LIÇÕES APRENDIDAS
+================================================================================
+
+API antiga (NpcSystem.parseParameters) NÃO funciona mais. Use Game.createNpcType.
+
+Salvar script como UTF-8 CAUSA CORRUPÇÃO de acentos no cliente.
+
+Tags de cor {{#00FF00}} NÃO são reconhecidas. Use apenas {destaque} padrão.
+
+Para múltiplas falas, use tabela com delay: npcHandler:say({"linha1", "linha2"}, npc, player, 3000).
+
+O nome no XML de spawn (MCR-npc.xml) deve bater exatamente com npcConfig.name.
+
+================================================================================
+🔍 CHECKLIST DE REVISÃO PARA O ASSISTENTE (NPCs)
+================================================================================
+
+- [ ] Script salvo como ISO-8859-1?
+
+- [ ] Usa Game.createNpcType e npcType:register(npcConfig)?
+
+- [ ] Callbacks onThink, onAppear, etc., delegam ao handler?
+
+- [ ] creatureSayCallback assinatura (npc, player, type, msg)?
+
+- [ ] npcHandler:say com npc e player como argumentos?
+
+- [ ] NpcUtils.correspondeAcao usado em vez de ==?
+
+- [ ] Palavras importantes entre {chaves}?
+
+- [ ] Não há addEvent manual para falas consecutivas?
+
+- [ ] Entrada no MCR-npc.xml adicionada?
+
+- [ ] Textos em PT-BR, com acentuação testada?
+
+- [ ] Prints de debug adicionados em todo o fluxo condicional? (tópicos, estados, validações)?
+
+
+================================================================================
+📤 COMO ATUALIZAR O REPOSITÓRIO GIT
+================================================================================
+
+git add "data/MCR Scripts/npc_utils.lua"
+git add "data/npc/scripts/seu_npc.lua"
+git add "data/world/MCR-npc.xml"
+git commit -m "feat(npc): adiciona NPC no novo padrão ISO-8859-1"
+git push origin main
+
+================================================================================
+FIM DO GUIA DE NARRATIVA E DIÁLOGOS
+================================================================================

@@ -1,0 +1,489 @@
+================================================================================
+PROJETO MCR – GUIA DE QUESTS (SISTEMA HÍBRIDO SQH)
+(Versão 3.0 – ISO‑8859‑1 e destaque por {chaves})
+Arquivo: MCR - Guia de Quests (Sistema Híbrido SQH).txt
+================================================================================
+
+🎯 OBJETIVO DESTE GUIA
+Definir o padrão absoluto para criação de missões (quests) no Projeto MCR.
+O Sistema de Quests Híbrido (SQH) combina a profundidade narrativa do chat com
+a conveniência de feedback visual moderno (HUD, notificações toast), sem jamais
+recorrer a janelas modais para progresso de missão.
+
+Este guia contém:
+
+A filosofia do SQH.
+
+O fluxograma de interação obrigatório.
+
+Destaque de palavras no chat com {chaves}.
+
+HUD de Missões (Quest Tracker).
+
+Notificações Toast.
+
+Diretrizes de qualidade.
+
+Exemplo completo de implementação.
+
+================================================================================
+⚠️ REGRAS DE REVISÃO PARA O ASSISTENTE (QUESTS – SQH)
+================================================================================
+
+Ao criar ou modificar QUALQUER quest no Projeto MCR, o assistente DEVE:
+
+Garantir que a quest seja 100% jogável dentro do OTClient, sem necessidade
+de site ou ferramenta externa.
+
+Proibir terminantemente o uso de player:showModalWindow() para aceitar,
+recusar ou progredir missões. Apenas Loja, Banco e confirmações críticas
+irreversíveis podem usar modais, e SEMPRE com fala introdutória no chat.
+
+Destacar palavras-chave no chat utilizando SOMENTE {chaves} (ex.: {aceitar},
+{5 Lágrimas de Sereia}). Tags como {{#RRGGBB}} não funcionam e devem ser
+evitadas.
+
+Notificar o cliente via sendExtendedOpcode (faixa 180-199) sempre que o estado
+da missão mudar, atualizando o HUD e exibindo toasts.
+
+Persistir o progresso em storages dentro das faixas reservadas (50000–50999
+para missões).
+
+Recompensar o jogador diretamente no inventário e anunciar no chat.
+
+Incluir validações de itens (se a quest exige coleta) e verificação de
+inventário.
+
+Documentar a quest com comentários em PT-BR e verificar IDs de itens/storages.
+
+Todos os scripts Lua (servidor) que exibem texto ao jogador devem ser salvos
+como ISO-8859-1.
+
+Em toda quest, condicionar a saída de logs de debug (print com "DEBUG:")
+para cada ponto de decisão: aceite da missão, coleta de itens, verificação
+de quantidade, entrega, recompensa e mudança de storage. Isso garante que
+o assistente possa entender o fluxo exato seguido pelo jogador.
+
+================================================================================
+🧠 1. FILOSOFIA DO SQH
+================================================================================
+
+O SQH resolve a tensão entre imersão narrativa e usabilidade moderna.
+
+Antigamente, quests em OTs exigiam que o jogador adivinhasse palavras mágicas
+("mission", "quest", "task") e não davam nenhum feedback visual do progresso.
+
+No MCR:
+
+O CHAT é o palco da história. O jogador LÊ o que o NPC diz e se conecta com a
+narrativa. Palavras-chave são DESTACADAS COM {CHAVES} para indicar o que é
+importante, eliminando a adivinhação.
+
+O HUD DE MISSÕES mostra o progresso em tempo real, sem poluir o chat.
+
+NOTIFICAÇÕES TOAST dão feedback imediato de objetivos concluídos, itens obtidos,
+recompensas recebidas.
+
+JANELAS MODAIS são PROIBIDAS para progresso de missão. Elas quebram a imersão
+e transformam o NPC em um terminal burocrático.
+
+================================================================================
+🗺️ 2. FLUXOGRAMA DE INTERAÇÃO HÍBRIDA (OBRIGATÓRIO)
+================================================================================
+
+Este é o fluxo padrão que TODA quest do MCR deve seguir. Adaptações são permitidas
+apenas se mantiverem a essência.
+
+SAUDAÇÃO CONTEXTUAL
+O NPC identifica o jogador e o estado da missão (storages).
+Ex.: "Ah, |PLAYERNAME|! Vejo que retornou. Conseguiu encontrar as {10 Peles de Lobo Etéreo}?"
+
+RECONHECIMENTO DE INTENÇÃO
+O script escuta palavras-chave (usando NpcUtils.correspondeAcao) para disparar
+a oferta de missão.
+Ex.: Se o jogador digitar "missao", "tarefa", "ajuda".
+Resposta do NPC: "Preciso que você vá até {Lago dos Reflexos} e me traga {5 Lágrimas de Sereia}. O que me diz? {aceitar}?"
+
+CONFIRMAÇÃO VIA DIGITAÇÃO
+O jogador DIGITA "aceitar" (ou sinônimo). Isso é processado pela creatureSayCallback.
+
+AÇÃO DO SERVIDOR (ao aceitar):
+a) Seta storage de missão ativa.
+b) Envia Extended Opcode (faixa 180) para ATUALIZAR o HUD de Missões.
+c) Opcionalmente, dispara um OPCODE_TOAST com "Missão iniciada: Nome da Missão".
+d) NPC dá uma fala de despedida narrativa.
+
+ACOMPANHAMENTO PELO HUD
+Durante a missão, o jogador vê no canto da tela:
+[Missão] Lágrimas de Sereia
+• Coletar Lágrimas de Sereia: 2/5
+O HUD é atualizado via Opcodes sempre que o jogador coleta um item ou avança
+um objetivo.
+
+ENTREGA / PROGRESSO
+O jogador retorna ao NPC e digita "entregar" (ou sinônimo).
+
+VALIDAÇÃO DO SERVIDOR
+a) Checa se o jogador possui os itens necessários (getItemCount).
+b) Remove os itens (removeItem).
+c) Concede a recompensa (addItem, addExperience, etc.).
+d) Atualiza storages (missão concluída).
+e) Envia Opcodes para LIMPAR o HUD e exibir TOAST de conclusão.
+f) NPC dá uma fala narrativa de sucesso, destacando a recompensa com {chaves}.
+
+================================================================================
+🔑 3. DESTAQUE DE PALAVRAS COM {CHAVES}
+================================================================================
+
+O OTClient Redemption reconhece automaticamente palavras ou expressões entre
+{chaves} e as exibe com destaque visual (geralmente em azul ou sublinhado).
+Este é o ÚNICO método de realce suportado no chat.
+
+Convenção MCR:
+
+Toda ação que o jogador deve digitar: {aceitar}, {entregar}, {missão}
+Itens de quest: {5 Lágrimas de Sereia}
+Locais / NPCs alvo: {Lago dos Reflexos}
+Recompensas: {500 pontos de experiência}, {100 Fragmentos de Prata Lunar}
+
+Exemplo de fala:
+"Preciso que vá até a {Torre do Astrônomo} e colete {10 Pedras Lunares}. Você {aceita}?"
+
+NÃO utilize tags HTML, `{{#RRGGBB}}` ou qualquer outra sintaxe – elas são
+ignoradas pelo cliente.
+
+================================================================================
+📟 4. HUD DE MISSÕES (QUEST TRACKER)
+================================================================================
+
+O Quest Tracker é um painel persistente no canto da tela (geralmente superior
+direito) que mostra a missão ativa e seu progresso.
+
+Localização no cliente: modules/game_questlog/quest_tracker.lua (a ser criado/modificado).
+
+Estrutura de dados enviada pelo servidor:
+lua
+local hudData = {
+titulo = "O Lamento da Sereia",
+descricao = "Coletar Lágrimas de Sereia",
+atual = 2,
+total = 5
+}
+player:sendExtendedOpcode(OPCODE_QUEST_UPDATE, json.encode(hudData))
+
+OPCODE_QUEST_UPDATE: Deve estar na faixa 180-199 (reservada para SQH). Valor
+específico definido no Guia de Configuração. Exemplo: 180.
+
+Comportamento do cliente (quest_tracker.lua):
+
+Ao receber o opcode, decodifica o JSON.
+
+Atualiza labels de título e descrição.
+
+Exibe barra de progresso ou texto "2/5".
+
+Se atual == total, pode piscar ou destacar (opcional).
+
+Ao receber opcode de limpeza (ou dados vazios), oculta o painel.
+
+Exemplo simplificado de listener:
+lua
+ProtocolGame.registerExtendedOpcode(180, function(protocol, opcode, buffer)
+if not buffer then return end
+local status, data = pcall(json.decode, buffer)
+if not status then return end
+if data and data.titulo then
+QuestTracker.update(data)
+else
+QuestTracker.clear()
+end
+end)
+
+================================================================================
+🔔 5. NOTIFICAÇÕES TOAST
+================================================================================
+
+Toasts são mensagens temporárias que aparecem em um canto da tela e somem após
+alguns segundos. São ideais para feedback de progresso.
+
+Localização no cliente: modules/game_toast/toast.lua (a ser criado).
+
+OPCODE_TOAST: Deve estar na faixa 180-199. Exemplo: 181.
+
+Estrutura de dados enviada pelo servidor:
+lua
+local toastData = {
+mensagem = "Você coletou uma Lágrima de Sereia! (2/5)",
+cor = "#00BFFF", -- opcional
+duracao = 3 -- segundos
+}
+player:sendExtendedOpcode(OPCODE_TOAST, json.encode(toastData))
+
+Implementação de referência no cliente:
+lua
+ProtocolGame.registerExtendedOpcode(181, function(protocol, opcode, buffer)
+if not buffer then return end
+local status, data = pcall(json.decode, buffer)
+if not status or not data.mensagem then return end
+Toast.show(data.mensagem, data.duracao or 3, data.cor)
+end)
+
+A função Toast.show cria um label estilizado, anima (fade in/out) e o destrói
+após a duração especificada.
+
+Toasts NÃO substituem o chat para narrativa. Use-os para:
+
+"Missão iniciada: O Lamento da Sereia"
+
+"Objetivo concluído: 5/5 Lágrimas de Sereia"
+
+"Recompensa recebida: 100 Fragmentos de Prata Lunar"
+
+"Nova missão disponível: O Chamado da Montanha"
+
+================================================================================
+📦 6. VALIDAÇÕES DE ITENS E INVENTÁRIO
+================================================================================
+
+Ao criar quests que exigem coleta de itens:
+
+Defina o ID do item (ex.: local ITEM_LAGRIMA_SEREIA = 11111).
+
+VERIFICAÇÃO PENDENTE: substituir pelo ID real após criar o item.
+
+Função para contar itens do jogador:
+lua
+local function getItemCount(player, itemId)
+return player:getItemCount(itemId) or 0
+end
+
+Ao entregar:
+lua
+local quantidade = getItemCount(player, ITEM_LAGRIMA_SEREIA)
+if quantidade >= QUANTIDADE_NECESSARIA then
+player:removeItem(ITEM_LAGRIMA_SEREIA, QUANTIDADE_NECESSARIA)
+-- concede recompensa
+else
+npcHandler:say("Você ainda não tem todas as lágrimas. Continue procurando no {Lago dos Reflexos}!", npc, player)
+end
+
+Recompensas:
+
+Itens: player:addItem(itemId, quantidade)
+
+Experiência: player:addExperience(valor)
+
+Dinheiro: player:addMoney(valor)
+
+Todas devem ser anunciadas no chat com destaque por {chaves}.
+
+================================================================================
+📋 7. DIRETRIZES DE QUALIDADE PARA QUESTS
+================================================================================
+
+Checklist obrigatório antes de marcar uma quest como "Concluída":
+
+Os diálogos do NPC usam {chaves} para destacar ações, itens e locais.
+
+NÃO há chamadas para player:showModalWindow() no fluxo da missão.
+
+Ao aceitar a missão, um Opcode é enviado para exibir/atualizar o HUD de Missões.
+
+Ao coletar itens, o progresso no HUD é atualizado em tempo real (via eventos de inventário ou kills).
+
+Ao concluir a missão, o HUD é ocultado e uma notificação toast é exibida.
+
+A recompensa é entregue diretamente no inventário/status e anunciada no chat com {destaque}.
+
+As chaves de storage usadas estão na faixa 50000–50999.
+
+Os Opcodes usados estão na faixa 180–199.
+
+O NPC utiliza a biblioteca npc_utils.lua para reconhecimento flexível de palavras-chave.
+
+A narrativa está em PT-BR impecável, com personalização por sexo/vocação.
+
+O script do NPC está salvo como ISO-8859-1.
+
+================================================================================
+📝 8. EXEMPLO COMPLETO: QUEST "O LAMENTO DA SEREIA"
+================================================================================
+
+-- NPC: Sereia Lunar
+-- Local: Lago dos Reflexos
+-- Missão: Coletar 5 Lágrimas de Sereia
+
+local npcName = "Sereia Lunar"
+local npcType = Game.createNpcType(npcName)
+local npcConfig = {}
+npcConfig.name = npcName
+npcConfig.description = "Uma sereia de olhar triste."
+
+-- Biblioteca obrigatória
+dofile('data/MCR Scripts/npc_utils.lua')
+
+-- Constantes da Quest
+local STORAGE_QUEST_SEREIA = 50001
+local STORAGE_LAGRIMAS_COLETADAS = 50002
+local QUANTIDADE_NECESSARIA = 5
+local ITEM_LAGRIMA_SEREIA = 11111 -- VERIFICAÇÃO PENDENTE
+local OPCODE_QUEST_UPDATE = 180
+local OPCODE_TOAST = 181
+
+local function getItemCount(player, itemId)
+    return player:getItemCount(itemId) or 0
+end
+
+local keywordHandler = KeywordHandler:new()
+local npcHandler = NpcHandler:new(keywordHandler)
+
+-- Callbacks de engine
+npcType.onThink = function(npc, interval) npcHandler:onThink(npc, interval) end
+npcType.onAppear = function(npc, creature) npcHandler:onAppear(npc, creature) end
+npcType.onDisappear = function(npc, creature) npcHandler:onDisappear(npc, creature) end
+npcType.onMove = function(npc, creature, from, to) npcHandler:onMove(npc, creature, from, to) end
+npcType.onSay = function(npc, creature, type, msg) npcHandler:onSay(npc, creature, type, msg) end
+npcType.onCloseChannel = function(npc, player) npcHandler:onCloseChannel(npc, player) end
+
+local function greetCallback(npc, player)
+    npcHandler:setMessage(MESSAGE_GREET, "As ondas sussurram seu nome, |PLAYERNAME|...")
+    return true
+end
+npcHandler:setCallback(CALLBACK_GREET, greetCallback)
+
+local function onAcceptQuest(npc, player)
+    if player:getStorageValue(STORAGE_QUEST_SEREIA) < 1 then
+        player:setStorageValue(STORAGE_QUEST_SEREIA, 1)
+        player:setStorageValue(STORAGE_LAGRIMAS_COLETADAS, 0)
+
+        local hudData = {
+            titulo = "O Lamento da Sereia",
+            descricao = "Coletar Lágrimas de Sereia",
+            atual = 0,
+            total = QUANTIDADE_NECESSARIA
+        }
+        player:sendExtendedOpcode(OPCODE_QUEST_UPDATE, json.encode(hudData))
+
+        local toastData = { mensagem = "Missão iniciada: O Lamento da Sereia", cor = "#00BFFF", duracao = 3 }
+        player:sendExtendedOpcode(OPCODE_TOAST, json.encode(toastData))
+
+        npcHandler:say("Que os ventos lhe guiem! Retorne assim que tiver as lágrimas.", npc, player)
+        npcHandler:setTopic(player:getId(), 0)
+    end
+end
+
+local function creatureSayCallback(npc, player, type, msg)
+    if not npcHandler:checkInteraction(npc, player) then return false end
+
+    local playerId = player:getId()
+    local tr = NpcUtils.getTratamento(player)
+
+    -- Estado 1: Nunca iniciou a quest
+    if player:getStorageValue(STORAGE_QUEST_SEREIA) < 1 then
+        if NpcUtils.correspondeAcao(msg, {"missao", "quest", "tarefa", "ajuda", "trabalho"}) then
+            npcHandler:say(NpcUtils.escolherFraseVariada(NpcUtils.frasesSaudacao, player), npc, player)
+            npcHandler:say(
+                "Preciso que colete para mim {5 Lágrimas de Sereia} no {Lago dos Reflexos}. " ..
+                "Você {aceita} este desafio, " .. tr.artigo .. " " .. tr.vocativo .. "?",
+                npc, player
+            )
+            npcHandler:setTopic(playerId, 1)
+        elseif npcHandler:getTopic(playerId) == 1 and NpcUtils.correspondeAcao(msg, {"aceitar", "sim", "aceito"}) then
+            onAcceptQuest(npc, player)
+        end
+
+    -- Estado 2: Missão em andamento
+    elseif player:getStorageValue(STORAGE_QUEST_SEREIA) == 1 then
+        if NpcUtils.correspondeAcao(msg, {"entregar", "consegui", "trouxe", "terminei", "completei"}) then
+            local quantidade = getItemCount(player, ITEM_LAGRIMA_SEREIA)
+            if quantidade >= QUANTIDADE_NECESSARIA then
+                player:removeItem(ITEM_LAGRIMA_SEREIA, QUANTIDADE_NECESSARIA)
+                player:setStorageValue(STORAGE_QUEST_SEREIA, 2)
+                player:setStorageValue(STORAGE_LAGRIMAS_COLETADAS, 0)
+
+                player:sendExtendedOpcode(OPCODE_QUEST_UPDATE, json.encode({}))
+                local toastData = { mensagem = "Missão concluída: O Lamento da Sereia!", cor = "#FFD700", duracao = 4 }
+                player:sendExtendedOpcode(OPCODE_TOAST, json.encode(toastData))
+
+                player:addItem(22222, 100) -- VERIFICAR ID
+                player:addExperience(500)
+
+                npcHandler:say(NpcUtils.escolherFraseVariada(NpcUtils.frasesObrigado, player), npc, player)
+                npcHandler:say("Tome seus {100 Fragmentos de Prata Lunar} e {500 pontos de experiência}!", npc, player)
+                npcHandler:setTopic(playerId, 0)
+            else
+                npcHandler:say("Você ainda não tem todas as lágrimas. Precisa de {5 Lágrimas de Sereia}. Você tem apenas " .. quantidade .. ". Continue procurando no {Lago dos Reflexos}!", npc, player)
+            end
+        elseif NpcUtils.correspondeAcao(msg, {"missao", "progresso", "status", "faltam"}) then
+            local quantidade = getItemCount(player, ITEM_LAGRIMA_SEREIA)
+            npcHandler:say("Você tem " .. quantidade .. " de " .. QUANTIDADE_NECESSARIA .. " {Lágrimas de Sereia}. Continue procurando.", npc, player)
+        end
+
+    -- Estado 3: Missão concluída
+    elseif player:getStorageValue(STORAGE_QUEST_SEREIA) == 2 then
+        npcHandler:say("Obrigada novamente, " .. tr.artigo .. " " .. tr.vocativo .. ". As lágrimas já estão curando o lago.", npc, player)
+    end
+
+    return true
+end
+
+npcHandler:setCallback(CALLBACK_MESSAGE_DEFAULT, creatureSayCallback)
+
+npcHandler:setMessage(MESSAGE_FAREWELL, "Que as marés lhe sejam favoráveis!")
+npcHandler:setMessage(MESSAGE_WALKAWAY, "Você partiu sem se despedir...")
+npcHandler:addModule(FocusModule:new(), npcConfig.name, true, true, true)
+
+-- Registro final
+npcType:register(npcConfig)
+
+================================================================================
+⚠️ ARMADILHAS E LIÇÕES APRENDIDAS
+================================================================================
+
+- Tags `{{#RRGGBB}}` não são processadas pelo cliente; apenas {chaves} funcionam.
+- Scripts Lua (servidor) com acentos devem ser salvos como ISO-8859-1 para evitar corrupção.
+- Para múltiplas falas, use `npcHandler:say({...}, npc, player, delay)` em vez de addEvent manual.
+- Storages negativas ou zeradas: O Canary trata storage < 0 como inexistente. Use 0 ou valores positivos.
+- Opcode duplicado: Certifique-se de que o opcode usado não conflita com outro sistema. Consulte a tabela de faixas no Guia de Configuração.
+
+================================================================================
+🔍 CHECKLIST DE REVISÃO PARA O ASSISTENTE (QUESTS)
+================================================================================
+
+- [ ] Diálogos usam {chaves} para destacar ações, itens e locais?
+
+- [ ] NENHUMA chamada a player:showModalWindow() no fluxo de progresso da missão?
+
+- [ ] Ao aceitar, Opcode 180 enviado para HUD?
+
+- [ ] Ao concluir, HUD limpo e Opcode 181 enviado para Toast?
+
+- [ ] Recompensa entregue e anunciada no chat com {destaque}?
+
+- [ ] Storages na faixa 50000–50999?
+
+- [ ] Opcodes na faixa 180–199?
+
+- [ ] NPC utiliza NpcUtils (sinônimos, tratamento, variação)?
+
+- [ ] IDs de itens verificados (ou marcados como VERIFICAÇÃO PENDENTE)?
+
+- [ ] Texto em PT-BR impecável, com personalização por sexo/vocação?
+
+- [ ] Script salvo como ISO-8859-1?
+
+
+================================================================================
+📤 COMO ATUALIZAR O REPOSITÓRIO GIT
+================================================================================
+
+git add "data/npc/scripts/sereia_lunar.lua"
+git add "data/world/MCR-npc.xml"
+git add "modules/game_questlog/quest_tracker.lua"
+git add "modules/game_toast/toast.lua"
+git commit -m "feat(quest): atualiza SQH para destaque com {chaves} e ISO-8859-1"
+git push origin main
+
+================================================================================
+FIM DO GUIA DE QUESTS (SISTEMA HÍBRIDO SQH)
+================================================================================

@@ -1,0 +1,373 @@
+================================================================================
+PROJETO MCR – GUIA DE CRIAÇÃO DE CONTA E PERSONAGEM
+(Versão 3.0 – Salão dos Destinos e Contas Guest)
+Arquivo: MCR - Guia de Criação de Conta e Personagem.txt
+================================================================================
+
+🎯 OBJETIVO DESTE GUIA
+Documentar o sistema de autenticação e gerenciamento de contas do Projeto MCR,
+totalmente integrado ao mundo do jogo através do Salão dos Destinos e do NPC
+Oráculo. Este guia substitui a abordagem anterior de "Criar Conta" e "Account
+Manager Alma" por um fluxo unificado, imersivo e livre de personagens dummy
+permanentes.
+
+Componentes abordados:
+- Botão "Salão dos Destinos" (entrada única para novos jogadores e gerenciamento).
+- Contas guest temporárias e personagem Alma descartável.
+- NPC Oráculo como central de autoatendimento (criação de conta, criação de
+  personagem, gerenciamento de conta existente).
+- Validação de nomes (lista branca de caracteres).
+- Integração com Login Server (via /guest_login e opcode de migração).
+- Transição suave para conta permanente (opcode 200).
+- Limpeza automática de contas guest para evitar poluição do banco.
+
+================================================================================
+⚠️ REGRAS DE REVISÃO PARA O ASSISTENTE (AUTENTICAÇÃO E CRIAÇÃO)
+================================================================================
+
+1. RESPEITE O PILAR "100% NO CLIENTE": toda interação ocorre dentro do OTClient,
+   sem site externo.
+2. IMERSÃO: o Salão dos Destinos é um local sagrado; o Oráculo é um personagem
+   místico que guia o jogador com diálogos narrativos.
+3. Use a API moderna de NPC: Game.createNpcType, callbacks obrigatórios,
+   creatureSayCallback(npc, player, type, msg), npcHandler:say com npc/player.
+4. Destaque palavras com {chaves}, jamais {{#RRGGBB}}.
+5. Todos os scripts Lua que exibem strings ao jogador devem ser salvos como
+   ISO-8859-1.
+6. Valide nomes de personagem com a LISTA BRANCA de caracteres (solução
+   provisória até correção definitiva de encoding no cliente).
+7. O Login Server usa padrão error_code para evitar acentos no JSON; as
+   mensagens mapeadas no cliente Lua estão em ISO-8859-1.
+8. Contas guest são temporárias. O Alma NUNCA é persistido em contas permanentes.
+9. O botão "Criar Conta" tradicional foi REMOVIDO. O único ponto de entrada para
+   novos jogadores é o botão "Salão dos Destinos".
+10. O personagem convidado (prefixo "Guest_") é TEMPORÁRIO e NUNCA aparece
+    em contas permanentes. No futuro, um módulo cliente mascarará o nome
+    "Guest_*" exibindo "Alma" para o jogador.
+11. O script do Oráculo (oraculo.lua) e quaisquer scripts auxiliares DEVEM
+    conter prints de debug (DEBUG:) que mostrem cada etapa do fluxo: geração
+    de conta guest, criação de nova conta, gerenciamento de conta existente,
+    validação de nome/senha, e envio de opcode 200. Os prints devem incluir
+    nome da conta, tópico atual e resultado de verificações.  
+
+================================================================================
+🗺️ 1. VISÃO GERAL DO FLUXO (NOVA DIREÇÃO)
+================================================================================
+
+FLUXO PARA NOVOS JOGADORES (CRIAÇÃO DE CONTA):
+1. Jogador clica no botão "Salão dos Destinos" na tela inicial.
+2. O cliente solicita ao Login Server (POST /guest_login) uma conta guest
+   temporária e o personagem Alma.
+3. O cliente automaticamente faz login com as credenciais recebidas e entra no
+   jogo com Alma no Salão dos Destinos.
+4. O Oráculo recebe o personagem convidado e oferece: {criar} uma nova conta ou {gerenciar} uma
+   existente.
+5. Se escolher "criar", o Oráculo conduz o diálogo: nome de conta, senha, e
+   opcionalmente criação de personagem (nome, sexo, vocação).
+6. Após a criação, o Oráculo envia um opcode (200) com as novas credenciais.
+7. O cliente migra automaticamente para a nova conta e entra no jogo com o
+   personagem recém-criado, sem jamais retornar ao menu principal.
+
+FLUXO PARA JOGADORES EXISTENTES (GERENCIAMENTO DE CONTA):
+1. Jogador clica no botão "Salão dos Destinos".
+2. Mesmo processo: conta guest + Alma.
+3. No Oráculo, escolhe "gerenciar" e fornece nome de conta e senha.
+4. O Oráculo valida as credenciais contra o banco de dados.
+5. Se autenticado, oferece opções: alterar senha, deletar personagem, criar novo
+   personagem, ou entrar no jogo com um personagem da conta.
+6. Para entrar no jogo, o Oráculo envia opcode 200 com as credenciais da conta
+   permanente e o personagem escolhido.
+7. O cliente migra para a conta gerenciada e o jogador assume o personagem.
+
+IMPORTANTE: Nenhuma conta permanente possui o personagem Alma. O Alma é
+estritamente temporário, pertencente a contas guest que são removidas
+automaticamente após um período de inatividade.
+
+================================================================================
+🌌 2. BOTÃO "SALÃO DOS DESTINOS" (ENTRADA ÚNICA)
+================================================================================
+
+Arquivos envolvidos (cliente):
+- modules/client_entergame/entergame.lua (modificado)
+- modules/client_entergame/salao_destinos.lua (novo, opcional)
+- modules/client_entergame/entergame.otui (se botão for adicionado via OTUI)
+
+O botão "Salão dos Destinos" aparece na tela inicial, abaixo de "Entrar".
+Não há mais botão "Criar Conta".
+
+Evento onClick:
+1. Exibe uma breve mensagem "Conectando ao Salão dos Destinos..." (pode ser um
+   label no próprio menu, sem janela modal).
+2. Realiza uma requisição HTTP POST para http://127.0.0.1:8080/guest_login
+   (sem parâmetros, pois é um pedido de conta guest).
+3. Ao receber a resposta JSON {account, password, character}, chama a função
+   g_entergame.doAutoLogin(account, password, character).
+4. A função doAutoLogin (implementada em entergame.lua) faz:
+   - HTTP POST /login com account e password.
+   - Obtém a lista de personagens (que conterá apenas "Alma").
+   - Seleciona automaticamente "Alma" e inicia a conexão ao servidor de jogo
+     (ProtocolGame na porta 7173).
+5. O jogador nunca vê a tela de seleção de personagens; a transição é direta
+   para dentro do jogo.
+
+Observações técnicas:
+- O botão e as funções devem ser escritos em Lua e salvos como ISO-8859-1.
+- A resposta do /guest_login pode ser tratada como UTF-8 (Go), mas os dados
+  (nome da conta guest, senha) não contêm acentos, então não há risco de
+  corrupção.
+- O módulo entergame.lua deve ser ajustado para suportar o bypass da tela de
+  seleção quando o parâmetro character é fornecido.
+
+================================================================================
+👤 3. CONTAS GUEST E PERSONAGEM ALMA TEMPORÁRIO
+================================================================================
+
+Conceito:
+- Uma conta guest é criada com nome no formato "guest_" + string aleatória
+  (ex.: guest_a1b2c3d4). A senha é gerada aleatoriamente e não é mostrada.
+- Imediatamente, um personagem com nome "Guest_" + string aleatória
+  (ex.: Guest_x7k2m9) é inserido na tabela players, associado a essa conta,
+  com posição inicial no Salão dos Destinos.
+- Esse personagem é um dummy: ao logar, o script de login (login.lua) reseta
+  seus atributos para estado inicial (level 1, vocation 0, sem itens, sem skills)
+  e teleporta-o ao Salão.
+- Ele NUNCA é atribuído a contas permanentes. Sua única função é permitir
+  a interação com o Oráculo.
+- No futuro, um módulo Lua no cliente ocultará o nome real (Guest_*) e exibirá
+  "Alma" para o jogador, mantendo a imersão narrativa.
+
+Criação da conta guest (Login Server):
+Endpoint: GET /guest_login
+Resposta: { "account": "guest_xyz", "password": "senhaAleatoria", "character": "Guest_xyz" }
+
+Implementação no Go:
+- Gerar nome da conta ("guest_") e nome do personagem ("Guest_") com 8 caracteres aleatórios.
+- Inserir em accounts (name = guest_xyz, password = hash SHA1, email = account name, created_at = timestamp).
+- Inserir em players (name = Guest_xyz, account_id = id da conta guest, posição do Salão, etc.).
+- Retornar JSON.
+
+Limpeza automática:
+- Uma rotina no Login Server remove contas guest cujo created_at seja anterior a 30 minutos:
+  DELETE FROM players WHERE name LIKE 'Guest\_%' AND account_id IN (SELECT id FROM accounts WHERE name LIKE 'guest\_%' AND created_at < UNIX_TIMESTAMP() - 1800);
+  DELETE FROM accounts WHERE name LIKE 'guest\_%' AND created_at < UNIX_TIMESTAMP() - 1800;
+- Isso garante que personagens temporários não se acumulem no banco.
+
+================================================================================
+🏛️ 4. SALÃO DOS DESTINOS (ÁREA SAGRADA)
+================================================================================
+
+- Área inacessível por meios normais (sem portas, escadas, teleports).
+- Acesso exclusivo via login com Alma (conta guest).
+- Posição central: exemplo (1000, 1000, 7).
+- Contém o NPC Oráculo e um tile de temple (para fins de respawn, se necessário).
+- Visual impactante, atmosfera de "entre mundos".
+- Nenhum outro NPC ou jogador pode entrar, exceto Almas convidadas.
+
+================================================================================
+🔮 5. NPC ORÁCULO (CENTRAL DE AUTOSERVIÇO)
+================================================================================
+
+Arquivo: data/npc/scripts/oraculo.lua (salvar como ISO-8859-1)
+
+O Oráculo utiliza o esqueleto padrão (Game.createNpcType) e lida com dois
+grandes fluxos: Criação de Conta Nova e Gerenciamento de Conta Existente.
+
+5.1 SAUDAÇÃO E IDENTIFICAÇÃO
+- O Oráculo verifica se o jogador é Alma e se a conta é guest (prefixo "guest_").
+  Caso contrário, recusa interação.
+- Mensagem de boas-vindas:
+  "Bem-vindo ao Salão dos Destinos, Alma. Você está diante do Oráculo dos
+   Caminhos. Deseja {criar} uma nova conta ou {gerenciar} uma conta existente?"
+
+5.2 FLUXO DE CRIAÇÃO DE CONTA NOVA
+Etapas:
+a. Solicitar nome de conta.
+   - Validações: 3 a 32 caracteres, alfanumérico (Unicode NFC), não pode começar
+     com "guest_", não pode já existir na tabela accounts.
+b. Solicitar senha.
+   - Validações: mínimo 8 caracteres, deve conter letras e números.
+   - O jogador digita a senha no chat (será mascarada? Não, para simplicidade,
+     mas instruir o jogador a usar um ambiente privado).
+c. Confirmar senha (digitar novamente).
+d. Inserir nova conta na tabela accounts (hash SHA1).
+e. Perguntar se deseja criar um personagem agora.
+   - Se sim, prossegue com escolha de nome (lista branca), sexo, vocação
+     (usando npcHandler:say com tabela para exibir opções).
+   - Insere o personagem na tabela players associado à nova conta.
+f. Após criação bem-sucedida, o Oráculo diz:
+   "Sua conta foi criada, e seu novo herói aguarda. Deseja {entrar} no mundo?"
+g. Ao digitar "entrar", o Oráculo envia opcode 200 com:
+   { account = "novoUsuario", password = "senhaEscolhida", character = "Heroi" }
+   O cliente então migra automaticamente (ver seção 7).
+
+5.3 FLUXO DE GERENCIAMENTO DE CONTA EXISTENTE
+a. Oráculo solicita: "Digite o nome da sua conta e a senha, separados por um espaço."
+b. O jogador digita, ex.: "minhaConta senha123".
+c. O Oráculo valida as credenciais consultando a tabela accounts e comparando
+   o hash SHA1.
+   - Se inválidas, informa erro e volta ao menu inicial.
+d. Se autenticado, armazena o account_id em storage temporária do personagem convidado (90001)
+   (ex.: player:setStorageValue(90001, accountId)).
+e. Apresenta menu de opções (usando {chaves}) :
+   "O que deseja gerenciar? {senha} para alterar sua senha, {personagem} para
+    gerenciar personagens, ou {entrar} para jogar com um personagem da conta."
+f. Subfluxos:
+   - Alterar senha: pede nova senha, valida, atualiza hash na tabela accounts.
+   - Gerenciar personagens:
+     * Deletar: lista personagens da conta (SELECT name FROM players WHERE account_id = X).
+       Jogador digita o nome do personagem a deletar. Pede confirmação {sim}/{não}.
+       Se confirmado, remove o registro.
+     * Criar novo personagem: inicia o mesmo diálogo de criação (nome, sexo, vocação),
+       associando o novo personagem ao account_id autenticado.
+   - Entrar no jogo: lista personagens da conta, pergunta qual deseja usar. Ao
+     digitar o nome, envia opcode 200 com as credenciais da conta permanente e
+     o nome do personagem escolhido.
+
+5.4 COMANDOS DE CANCELAMENTO
+Em qualquer ponto, o jogador pode digitar "sair", "cancelar", "voltar". O Oráculo
+retorna ao menu inicial ou encerra a interação.
+
+5.5 SEGURANÇA
+- O Oráculo JAMAIS armazena ou exibe senhas em texto plano.
+- As consultas SQL usam parâmetros (placeholders) para evitar injeção.
+- O acesso ao banco pelo servidor é necessário; se preferir isolar, pode-se
+  criar funções no Login Server e chamá-las via HTTP (a ser decidido).
+
+================================================================================
+🔤 6. VALIDAÇÃO DE NOMES DE PERSONAGEM (LISTA BRANCA)
+================================================================================
+
+Mantém-se a mesma política anterior, com a lista branca de caracteres:
+- a-z, A-Z, 0-9
+- espaço (apenas um, sem múltiplos consecutivos)
+- á, é, í, ó, ú, Á, É, Í, Ó, Ú
+- â, ê, ô, Â, Ê, Ô
+- à, À
+- ç, Ç
+- 'ã', 'õ' NÃO são permitidos (causam corrupção).
+Comprimento: 3 a 20 caracteres.
+
+A validação é feita no script do Oráculo, tanto para criação de personagem novo
+quanto para criação de personagem adicional.
+
+================================================================================
+🌐 7. INTEGRAÇÃO COM LOGIN SERVER E OPCODE DE MIGRAÇÃO
+================================================================================
+
+7.1 ENDPOINTS DO LOGIN SERVER
+- /guest_login (novo): cria conta guest + Alma.
+- /login (existente): autentica e retorna lista de personagens.
+- /register (existente): opcional, pode ser mantido para registro direto via
+  interface web, mas o fluxo principal usa o Oráculo.
+
+7.2 OPCODE 200 – MIGRAÇÃO DE CONTA
+O servidor envia ao cliente as novas credenciais para que ele troque de conta
+sem sair do jogo.
+
+Estrutura do JSON enviado pelo Oráculo:
+{
+  "account": "contaDestino",
+  "password": "senhaDestino",
+  "character": "PersonagemEscolhido"  // opcional
+}
+
+Se "character" for fornecido, o cliente deve:
+1. Desconectar da conta guest (sem salvar estado do Alma).
+2. Fazer login HTTP com as novas credenciais.
+3. Selecionar automaticamente o personagem indicado e entrar no jogo.
+
+Isso permite uma transição absolutamente fluida: o jogador sai do Alma e
+aparece com seu novo personagem no templo inicial (ou no local definido).
+
+7.3 IMPLEMENTAÇÃO NO CLIENTE (entergame.lua)
+- Registrar listener para opcode 200 (ProtocolGame.registerExtendedOpcode).
+- Na função de callback, chamar g_game.logout(false) e agendar um
+  g_entergame.doAutoLogin com as credenciais recebidas.
+- A função doAutoLogin deve ser robusta o suficiente para pular o menu
+  principal e a seleção de personagens quando o parâmetro character está
+  presente.
+
+
+================================================================================
+📋 8. NOTAS DE IMPLEMENTAÇÃO (CONSOLIDADAS)
+================================================================================
+
+- **Contas guest temporárias**: criadas pelo endpoint GET /guest_login. O personagem temporário tem nome único (Guest_<random>). Ao logar, o servidor reseta atributos.
+- **Oráculo**: 
+  - Usa db.query síncrono para INSERT e verificações.
+  - Armazena dados temporários em tabela Lua (tempData) para strings (nome, senha, personagem).
+  - Valida nomes com lista branca (sem ã, õ).
+  - Aplica looktype 128 (masculino) ou 136 (feminino) automaticamente.
+  - Define lastlogin = os.time() no novo personagem para evitar o script send_first_items.
+- **Cliente**:
+  - Salvar entergame.lua como ISO-8859-1.
+  - Botão "Salão dos Destinos" usa HTTP.get para /guest_login.
+  - Login direto com g_game.loginWorld, sem CharacterList.
+  - Após logout guest, a tela de login é reexibida; a lista de personagens é limpa com pcall(CharacterList.destroy).
+  - (Futuro) Módulo de máscara de nome: exibirá "Alma" para qualquer personagem com prefixo "Guest_".
+
+================================================================================
+⚠️ ARMADILHAS E LIÇÕES APRENDIDAS (ATUALIZADAS)
+================================================================================
+
+- **Contas guest com flood:** Nunca crie personagens convidados (Guest_*) em contas permanentes. Use
+  limpeza automática (30 min) para remover contas guest abandonadas.
+- **Acentuação em nomes:** A lista branca evita corrupção, mas o banco de
+  dados (utf8mb4) pode armazenar qualquer caractere. A validação no Lua
+  deve ser rigorosa.
+- **SERVER_PORT:** O .env deve ter SERVER_PORT=7173, caso contrário o
+  cliente não consegue conectar ao jogo após a migração.
+- **Transição com opcode 200:** Testar cuidadosamente a desconexão e
+  reconexão para evitar loops ou estados inconsistentes.
+- **Uso de storage temporário:** O Alma perde seus dados ao deslogar (pois
+  a conta guest é descartada), então storages usados durante o gerenciamento
+  (ex.: accountId autenticado) não precisam de limpeza.
+- **Oráculo acessível apenas por personagens convidados:** Bloquear interação se o jogador
+  não tiver prefixo "Guest_" ou a conta não for guest.
+
+================================================================================
+🔍 CHECKLIST DE REVISÃO PARA O ASSISTENTE
+================================================================================
+
+- [ ] Toda a experiência ocorre dentro do OTClient?
+
+- [ ] Botão "Salão dos Destinos" substitui "Criar Conta" e funciona com /guest_login?
+
+- [ ] A função doAutoLogin permite entrada direta com Alma?
+
+- [ ] Alma é criado automaticamente pelo Login Server e removido por limpeza?
+
+- [ ] O Oráculo verifica se o jogador é Alma e conta guest?
+
+- [ ] Fluxo de criação de conta nova: validações, inserção no banco, hash SHA1?
+
+- [ ] Fluxo de gerenciamento: autenticação da conta, opções de alteração, deleção, criação de personagem?
+
+- [ ] Opcode 200 implementado e cliente migra corretamente?
+
+- [ ] Scripts Lua (Oráculo, login do Alma) salvos como ISO-8859-1?
+
+- [ ] Nomes de personagem validados com lista branca (sem ã, õ)?
+
+- [ ] Diálogos usam {chaves} para destacar palavras-chave?
+
+- [ ] Nenhuma conta permanente recebe personagem Alma?
+
+- [ ] Rotina de limpeza de contas guest configurada?
+
+
+================================================================================
+📤 COMO ATUALIZAR O REPOSITÓRIO GIT
+================================================================================
+
+  git add "OTClient/modules/client_entergame/entergame.lua"
+  git add "OTClient/modules/client_entergame/salao_destinos.lua"   (se criado)
+  git add "data/npc/scripts/oraculo.lua"
+  git add "data/creaturescripts/scripts/login_alma.lua"
+  git add "LoginServer/src/api/guest.go"
+  git commit -m "feat(auth): implementa Salão dos Destinos com contas guest e Oráculo autosserviço"
+  git push origin main
+
+================================================================================
+FIM DO GUIA DE CRIAÇÃO DE CONTA E PERSONAGEM (VERSÃO 3.0)
+================================================================================

@@ -1,15 +1,15 @@
 --[[
 Projeto: MCR
-MÛdulo: Script de Login do Jogador
+M√≥dulo: Script de Login do Jogador
 Arquivo: data/scripts/creaturescripts/player/login.lua
-DescriÁ„o: Gerencia todas as aÁıes executadas quando um jogador faz login no servidor.
-Inclui o redirecionamento do personagem "Alma" para o Sal„o dos Destinos.
+Descri√ß√£o: Gerencia todas as a√ß√µes executadas quando um jogador faz login no servidor.
+Inclui o reset do personagem "Alma" e teletransporte para o Sal√£o dos Destinos.
 --]]
 
--- FunÁ„o auxiliar para enviar mensagens de boost
+-- Fun√ß√£o auxiliar para enviar mensagens de boost
 local function sendBoostMessage(player, category, isIncreased)
     local status = isIncreased and "aumentado(a)" or "reduzido(a)"
-    return player:sendTextMessage(MESSAGE_BOOSTED_CREATURE, string.format("Evento! %s est· %s. Boa caÁada!", category, status))
+    return player:sendTextMessage(MESSAGE_BOOSTED_CREATURE, string.format("Evento! %s est√° %s. Boa ca√ßada!", category, status))
 end
 
 -- Evento de Login Global
@@ -25,49 +25,80 @@ function playerLoginGlobal.onLogin(player)
         loginStr = "Por favor, escolha seu visual."
         player:sendOutfitWindow()
 
-        -- Define o streak level inicial, se configurado
         local startStreakLevel = configManager.getNumber(configKeys.START_STREAK_LEVEL)
         if startStreakLevel > 0 then
             player:setStreakLevel(startStreakLevel)
         end
 
-        -- Marca o tutorial como concluÌdo
         db.query("UPDATE `players` SET `istutorial` = 0 WHERE `id` = " .. player:getGuid())
     else
-        -- Login de retorno
-        loginStr = string.format("Sua ˙ltima visita em %s: %s.", SERVER_NAME, os.date("%d %b %Y %X", player:getLastLoginSaved()))
+        loginStr = string.format("Sua √∫ltima visita em %s: %s.", SERVER_NAME, os.date("%d %b %Y %X", player:getLastLoginSaved()))
     end
     player:sendTextMessage(MESSAGE_LOGIN, loginStr)
 
     -- =========================================================================
     -- REGISTRO DE EVENTOS
     -- =========================================================================
-    -- Registra o evento de Extended Opcode para comunicaÁ„o cliente-servidor
     player:registerEvent("ExtendedOpcode")
 
     -- =========================================================================
-    -- SAL√O DOS DESTINOS (Account Manager "Alma")
+    -- SAL√ÉO DOS DESTINOS (Account Manager "Alma")
     -- =========================================================================
-    if player:getName() == "Alma" then
-        local destino = Position(666, 666, 15) -- VERIFICA«√O PENDENTE: Coordenadas do Sal„o dos Destinos
+    if player:getName():sub(1, 6) == "Guest_" then
+        -- Reseta atributos para estado dummy puro
+        player:setMaxHealth(100)
+        player:addHealth(100)
+        player:setMaxMana(0)
+        player:setLevel(1)
+        player:setVocation(Vocation(0))
+
+        -- Limpa invent√°rio (esvazia slots)
+        local slots = { CONST_SLOT_HEAD, CONST_SLOT_NECKLACE, CONST_SLOT_BACKPACK, CONST_SLOT_ARMOR,
+                       CONST_SLOT_RIGHT, CONST_SLOT_LEFT, CONST_SLOT_LEGS, CONST_SLOT_FEET,
+                       CONST_SLOT_RING, CONST_SLOT_AMMO }
+        for _, slot in ipairs(slots) do
+            local item = player:getSlotItem(slot)
+            if item then
+                item:remove()
+            end
+        end
+
+        -- Reseta skills
+        for skillType = SKILL_FIST, SKILL_FISHING do
+            player:setSkillLevel(skillType, 1)
+        end
+
+        -- Reseta storages do Or√°culo
+        player:setStorageValue(90001, -1)
+        player:setStorageValue(90002, -1)
+        player:setStorageValue(90003, -1)
+        player:setStorageValue(90004, -1)
+        player:setStorageValue(90005, -1)
+        player:setStorageValue(90006, -1)
+
+        -- Teleporta para o Sal√£o dos Destinos (coordenadas j√° testadas)
+        local destino = Position(666, 666, 15)
         player:teleportTo(destino)
-        player:sendTextMessage(MESSAGE_EVENT_ADVANCE, "VocÍ foi convocado ao Sal„o dos Destinos para forjar seu novo herÛi.")
-        -- O NPC Or·culo iniciar· o di·logo automaticamente quando o Alma se aproximar
+        player:sendTextMessage(MESSAGE_EVENT_ADVANCE, "Voc√™ foi convocado ao Sal√£o dos Destinos para forjar seu novo her√≥i.")
     end
 
     -- =========================================================================
-    -- GERENCIAMENTO DE PROMO«√O
+    -- GERENCIAMENTO DE PROMO√á√ÉO (ignorado para Alma Vocation(0))
     -- =========================================================================
     local vocation = player:getVocation()
-    local promotion = vocation:getPromotion()
-    if player:isPremium() then
-        local hasPromotion = player:kv():get("promoted")
-        if not player:isPromoted() and hasPromotion then
-            player:setVocation(promotion)
+    if vocation and vocation:getId() ~= 0 then
+        local promotion = vocation:getPromotion()
+        if player:isPremium() then
+            local hasPromotion = player:kv():get("promoted")
+            if not player:isPromoted() and hasPromotion then
+                player:setVocation(promotion)
+            end
+        elseif player:isPromoted() then
+            player:setVocation(vocation:getDemotion())
         end
-    elseif player:isPromoted() then
-        player:setVocation(vocation:getDemotion())
     end
+
+    -- ... (restante do script permanece igual, sem altera√ß√µes)
 
     -- =========================================================================
     -- CRIATURAS E BOSSES BOOSTADOS
@@ -76,18 +107,18 @@ function playerLoginGlobal.onLogin(player)
     player:sendTextMessage(MESSAGE_BOOSTED_CREATURE, string.format("Boss boostado de hoje: %s.", Game.getBoostedBoss()))
 
     -- =========================================================================
-    -- BA⁄ DE RECOMPENSAS
+    -- BA√ö DE RECOMPENSAS
     -- =========================================================================
     local rewards = #player:getRewardList()
     if rewards > 0 then
-        player:sendTextMessage(MESSAGE_LOGIN, string.format("VocÍ tem %d recompensa(s) em seu ba˙ de recompensas.", rewards))
+        player:sendTextMessage(MESSAGE_LOGIN, string.format("Voc√™ tem %d recompensa(s) em seu ba√∫ de recompensas.", rewards))
     end
 
     -- =========================================================================
     -- EVENTOS DE TAXAS (RATES)
     -- =========================================================================
     if SCHEDULE_EXP_RATE ~= 100 then
-        sendBoostMessage(player, "Taxa de ExperiÍncia", SCHEDULE_EXP_RATE > 100)
+        sendBoostMessage(player, "Taxa de Experi√™ncia", SCHEDULE_EXP_RATE > 100)
     end
 
     if SCHEDULE_SPAWN_RATE ~= 100 then
@@ -129,7 +160,7 @@ function playerLoginGlobal.onLogin(player)
     end
 
     -- =========================================================================
-    -- EXIBI«√O DE EXPERI NCIA NO CLIENTE
+    -- EXIBI√á√ÉO DE EXPERI√äNCIA NO CLIENTE
     -- =========================================================================
     if configManager.getBoolean(configKeys.XP_DISPLAY_MODE) then
         local baseRate = player:getFinalBaseRateExperience() * 100
@@ -138,7 +169,7 @@ function playerLoginGlobal.onLogin(player)
             if vipBonusExp > 0 and player:isVip() then
                 vipBonusExp = (vipBonusExp > 100 and 100) or vipBonusExp
                 baseRate = baseRate * (1 + (vipBonusExp / 100))
-                player:sendTextMessage(MESSAGE_BOOSTED_CREATURE, string.format("XP base normal: %d%%. Por ser VIP, bÙnus de %d%%.", baseRate, vipBonusExp))
+                player:sendTextMessage(MESSAGE_BOOSTED_CREATURE, string.format("XP base normal: %d%%. Por ser VIP, b√¥nus de %d%%.", baseRate, vipBonusExp))
             end
         end
 
@@ -146,7 +177,7 @@ function playerLoginGlobal.onLogin(player)
     end
 
     -- =========================================================================
-    -- B‘NUS DE STAMINA E LOW LEVEL
+    -- B√îNUS DE STAMINA E LOW LEVEL
     -- =========================================================================
     player:setStaminaXpBoost(player:getFinalBonusStamina() * 100)
     player:getFinalLowLevelBonus()
@@ -179,7 +210,7 @@ function playerLoginGlobal.onLogin(player)
     end
 
     -- =========================================================================
-    -- RESET DE SISTEMAS DE EXERCÕCIO
+    -- RESET DE SISTEMAS DE EXERC√çCIO
     -- =========================================================================
     if _G.OnExerciseTraining[player:getId()] then
         stopEvent(_G.OnExerciseTraining[player:getId()].event)
@@ -188,7 +219,7 @@ function playerLoginGlobal.onLogin(player)
     end
 
     -- =========================================================================
-    -- INICIALIZA«√O DE TEMPORIZADORES E RECOMPENSAS DI¡RIAS
+    -- INICIALIZA√á√ÉO DE TEMPORIZADORES E RECOMPENSAS DI√ÅRIAS
     -- =========================================================================
     local playerId = player:getId()
     _G.NextUseStaminaTime[playerId] = 1
@@ -204,13 +235,12 @@ function playerLoginGlobal.onLogin(player)
         stats.playerId = player:getId()
     end
 
-    -- Remove o tempo de boss se o servidor foi salvo apÛs o ˙ltimo login
     if GetDailyRewardLastServerSave() >= player:getLastLoginSaved() then
         player:setRemoveBossTime(1)
     end
 
     -- =========================================================================
-    -- CORRE«√O DE OUTFIT DE SUPORTE (EVITA CRASHES)
+    -- CORRE√á√ÉO DE OUTFIT DE SUPORTE (EVITA CRASHES)
     -- =========================================================================
     local playerOutfit = player:getOutfit()
     if table.contains({ 75, 266, 302 }, playerOutfit.lookType) then
@@ -229,12 +259,12 @@ function playerLoginGlobal.onLogin(player)
     player:registerEvent("UpdatePlayerOnAdvancedLevel")
 
     -- =========================================================================
-    -- B‘NUS DE ATAQUE B¡SICO PARA MONKS
+    -- B√îNUS DE ATAQUE B√ÅSICO PARA MONKS
     -- =========================================================================
     if vocation and vocation:getBaseId() == VOCATION.BASE_ID.MONK then
         local kv = player:kv()
         if (kv:get("monk-basic-atk-bonus") or 0) < 10 then
-            logger.info("Definindo bÙnus de ataque b·sico do Monk para 10. Jogador: {}.", player:getName())
+            logger.info("Definindo b√¥nus de ataque b√°sico do Monk para 10. Jogador: {}.", player:getName())
             kv:set("monk-basic-atk-bonus", 10)
         end
     end

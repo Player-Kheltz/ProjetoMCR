@@ -1,0 +1,175 @@
+================================================================================
+PROJETO MCR – GUIA DE COMPILAÇÃO (CLIENTE)
+Base: OTClient Redemption (opentibiabr/otclient) – Protocolo 15.00
+Arquivo: MCR - Guia de Compilação (Cliente).txt
+================================================================================
+
+🎯 OBJETIVO DESTE GUIA
+Fornecer todas as instruções, dependências, customizações e verificações necessárias
+para compilar o OTClient Redemption do Projeto MCR a partir do código-fonte. Este guia
+também estabelece as regras que o assistente DEVE seguir ao auxiliar em tarefas
+relacionadas à compilação, modificação de arquivos C++ do cliente ou ajustes nos
+módulos Lua que dependem de alterações no motor.
+
+================================================================================
+⚠️ REGRAS DE REVISÃO PARA O ASSISTENTE (C++ CLIENTE / OTCLIENT)
+================================================================================
+
+Ao modificar QUALQUER arquivo .cpp/.h no diretório OTClient/src/, o assistente DEVE:
+
+1. Garantir que TODAS as strings de interface (menus, mensagens de toast, labels) estejam
+   em PT-BR, com acentuação correta (UTF-8 com BOM no C++, mas os scripts Lua carregados
+   pelo cliente exigem ISO-8859-1 – ver Guia de Interface).
+2. Manter comentários em PT-BR; nomes de funções e variáveis em inglês (camelCase).
+3. Verificar se a alteração preserva a compatibilidade com o servidor Canary (protocolo 15.00).
+4. Se modificar a comunicação de rede (HTTP, ProtocolGame, Extended Opcodes), garantir que
+   as portas usadas são 8080 (Login Server) e 7173 (Game), conforme documentado.
+5. Toda nova interface gráfica em C++ deve utilizar os recursos existentes do motor
+   (g_ui, displays) e ser documentada para integração Lua.
+6. Após a edição, listar explicitamente os arquivos modificados para compilação seletiva.
+
+================================================================================
+📦 DEPENDÊNCIAS (AMBIENTE WINDOWS)
+================================================================================
+
+Ferramentas Obrigatórias:
+- Visual Studio 2022 (Community ou superior) com carga de trabalho "Desenvolvimento
+  para desktop com C++".
+- CMake 3.20 ou superior.
+- Git for Windows.
+- vcpkg (o mesmo utilizado para o servidor, ou um clone separado).
+
+Bibliotecas Requeridas (instalar via vcpkg, para x64-windows):
+  .\vcpkg install boost-algorithm:x64-windows boost-asio:x64-windows boost-beast:x64-windows boost-filesystem:x64-windows boost-system:x64-windows boost-variant:x64-windows
+  .\vcpkg install lua:x64-windows
+  .\vcpkg install glew:x64-windows
+  .\vcpkg install sdl2:x64-windows sdl2-image:x64-windows sdl2-ttf:x64-windows sdl2-mixer:x64-windows
+  .\vcpkg install openal-soft:x64-windows
+  .\vcpkg install libogg:x64-windows libvorbis:x64-windows
+  .\vcpkg install pugixml:x64-windows
+  .\vcpkg install fmt:x64-windows spdlog:x64-windows
+  .\vcpkg install nlohmann-json:x64-windows
+  .\vcpkg install zlib:x64-windows libpng:x64-windows libjpeg-turbo:x64-windows
+  .\vcpkg install cryptopp:x64-windows (se suporte a AES for compilado)
+
+Referência completa: README.md do repositório opentibiabr/otclient (branch main).
+
+================================================================================
+🔨 PROCEDIMENTO DE COMPILAÇÃO
+================================================================================
+
+1. Clone o repositório MCR (já contém os fontes customizados):
+   git clone https://github.com/Player-Kheltz/ProjetoMCR.git
+   cd ProjetoMCR\OTClient
+
+2. Configure o CMake (substitua o caminho do vcpkg):
+   mkdir build
+   cd build
+   cmake .. -DCMAKE_TOOLCHAIN_FILE=C:/vcpkg/scripts/buildsystems/vcpkg.cmake -DVCPKG_TARGET_TRIPLET=x64-windows
+
+3. Compile:
+   cmake --build . --config Release
+
+4. O executável será gerado em build\Release\otclient.exe.
+
+5. Copie o otclient.exe para a raiz do diretório do OTClient (onde está o init.lua e
+   as pastas data/, modules/). O cliente NÃO funciona sem os arquivos de configuração.
+   Uma alternativa é executar o cliente a partir do diretório build com os caminhos
+   ajustados, mas a prática recomendada é manter o exe na raiz junto com data/.
+
+================================================================================
+🧬 CUSTOMIZAÇÕES MCR JÁ APLICADAS AO CÓDIGO-FONTE DO OTCLIENT
+================================================================================
+
+As seguintes modificações estão presentes nos fontes do repositório ProjetoMCR/OTClient.
+O assistente NÃO precisa reaplicá‑las, mas deve conhecê‑las para manutenção.
+
+1. Cache Portátil (init.lua)
+   - Linha original substituída: g_resources.setupUserWriteDir(('%s/'):format(g_app.getCompactName()))
+   - Nova linha: g_resources.setWriteDir(g_resources.getWorkDir() .. 'cache')
+   - Resultado: cache em pasta local (cache/ na raiz), dispensando %APPDATA%.
+   - Necessário criar manualmente a pasta cache/ ou garantir que o motor a crie.
+
+
+2. Tradução Parcial de Interfaces (Em Andamento)
+   - Alguns módulos essenciais (entergame, characterlist) já têm strings traduzidas para PT-BR.
+   - A interface de criação de conta (registro.lua) e a janela .otui associada estão em PT-BR.
+   - Trabalho contínuo: toda string fixa exibida ao jogador deve ser traduzida.
+
+================================================================================
+🧩 CONFIGURAÇÕES ESPECÍFICAS DO OTCLIENT PÓS-COMPILAÇÃO
+================================================================================
+
+- **init.lua – Tabela Servers:**
+  Deve conter a entrada para o Projeto MCR:
+  lua
+  Servers = {
+    {
+      name = "Projeto MCR",
+      host = "127.0.0.1",
+      port = 8080,
+      client = 1500,
+      httpLogin = true,
+      url = "http://127.0.0.1/",
+    }
+  }
+  
+- **OTCFeatures:** Não configuráveis diretamente no cliente; são recebidas do servidor.
+  O servidor deve ter OTCFEATURES adequadas (Guia de Configuração).
+
+- **Fontes:** O cliente já vem com as fontes bitmap listadas no Guia de Interface.
+  Não é necessário instalar fontes adicionais no sistema.
+
+================================================================================
+⚠️ ARMADILHAS E LIÇÕES APRENDIDAS (EXTRAÍDAS DO DEVLOG)
+================================================================================
+
+- **Cache em %APPDATA%:** No desenvolvimento, limpar cache foi um problema constante.
+  A solução de cache portátil (pasta local) resolveu isso completamente (Fase 19).
+- **Módulos de bot/walking:** O OTClient Redemption inclui alguns módulos que podem
+  causar travamentos ou comportamentos indesejados se não removidos (Fase 2.4).
+- **Codificação de scripts Lua carregados com dofile:** Mesmo que o C++ do motor
+  trabalhe com UTF-8, o interpretador Lua do OTClient processa arquivos .lua como
+  Latin-1 por padrão. Scripts com acentos devem ser salvos como ISO-8859-1 (Fase 22.3).
+- **Métodos setModal, center:** A versão Redemption não suporta certos métodos
+  convenientes; a interface deve ser definida via OTUI com `modal: true, center: true`
+  ou calculando posições manualmente (Fase 11).
+- **Login HTTP:** A substituição do ProtocolLogin por HTTP.post evitou travamentos
+  e "Things are not loaded" (Fase 12). O login via HTTP é a única forma suportada
+  no fluxo MCR.
+
+================================================================================
+🔍 CHECKLIST DE REVISÃO PARA O ASSISTENTE (C++ CLIENTE)
+================================================================================
+
+Antes de finalizar qualquer modificação em arquivos .cpp/.h do OTClient, o assistente
+DEVE verificar:
+
+- [ ] Strings de interface expostas ao jogador (labels, botões, menus) estão em PT-BR, com acentuação correta?
+
+- [ ] Comentários de código em PT-BR; nomes de funções/variáveis em inglês?
+
+- [ ] A modificação mantém compatibilidade com o servidor Canary (protocolo 15.00)?
+
+- [ ] Novos caminhos de arquivo ou diretórios respeitam a estrutura do cliente?
+
+- [ ] A comunicação de rede utiliza as portas corretas (8080 HTTP, 7173 game)?
+
+- [ ] Se adicionou bindings Lua, a documentação foi atualizada?
+
+
+================================================================================
+📤 COMO ATUALIZAR O REPOSITÓRIO GIT APÓS MODIFICAÇÕES
+================================================================================
+
+Após compilar e testar:
+
+  git add OTClient/src/...
+  git commit -m "build(cliente): [descrição clara em pt-BR]"
+  git push origin main
+
+⚠️ PowerShell: nomes de arquivos com espaços devem ser entre aspas duplas.
+
+================================================================================
+FIM DO GUIA DE COMPILAÇÃO (CLIENTE)
+================================================================================

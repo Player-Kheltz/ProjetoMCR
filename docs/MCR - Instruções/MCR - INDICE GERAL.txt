@@ -1,0 +1,156 @@
+================================================================================
+PROJETO MCR – ÍNDICE GERAL E PILARES PERMANENTES
+Versão: 1.2 (Atualização dos Pilares 6)
+Arquivo: MCR - INDICE GERAL.txt
+================================================================================
+
+🎯 FUNÇÃO DESTE ARQUIVO
+Este documento é a raiz de toda a documentação do Projeto MCR. Ele serve a dois
+propósitos fundamentais:
+
+1. LEMBRETE PERMANENTE: contém os pilares filosóficos e técnicos que NUNCA podem
+   ser violados em nenhuma camada do projeto.
+
+2. ÍNDICE DE GUIAS: lista todos os documentos temáticos que compõem a base de
+   conhecimento do Projeto MCR, com uma breve descrição do conteúdo de cada um.
+
+================================================================================
+⚠️ PILARES PERMANENTES (APLICÁVEIS A TODAS AS CAMADAS)
+================================================================================
+
+▶ PILAR 1 – JORNADA 100% NO CLIENTE
+Nenhuma experiência essencial do jogador pode ocorrer fora do OTClient. Criação de
+conta, login, seleção de personagem, quests, loja, gerenciamento de conta – TUDO
+deve ser resolvido dentro do cliente. O site/AAC (MyAAC) é opcional e complementar,
+jamais um requisito para jogar.
+
+▶ PILAR 2 – ESCOPO MÁXIMO DE CUSTOMIZAÇÃO
+Qualquer componente do ecossistema pode ser modificado em nível de código-fonte:
+Servidor Canary (C++ e Lua), OTClient (C++ e Lua), Login Server (Go) e Map Editor.
+Se uma funcionalidade não puder ser implementada apenas com scripts, o assistente
+DEVE considerar a modificação dos fontes como uma opção válida e documentá-la.
+
+▶ PILAR 3 – IDIOMA OFICIAL: PORTUGUÊS DO BRASIL (PT-BR)
+Todas as strings visíveis ao jogador, todos os comentários de código (C++, Lua, Go),
+todas as mensagens de sistema e logs, e toda a documentação devem ser escritos em
+português do Brasil com acentuação impecável. Exceções: nomes de variáveis, funções,
+classes, enums, palavras-chave das linguagens e chaves de configuração (ex.: "modalWindows").
+
+▶ PILAR 4 – IMERSÃO NARRATIVA (AVENTURA FANTASIOSA)
+O mundo MCR é um universo de fantasia original. NPCs possuem personalidade, variação
+de discurso e reagem ao contexto do jogador (sexo, vocação, progresso em missões).
+A ambientação é rica, coerente e totalmente desvinculada do Tibia oficial.
+
+▶ PILAR 5 – EXPERIÊNCIA DE JOGO MODERNA (CHAT COM {CHAVES} + HUD + TOAST)
+Interações narrativas usam o chat com palavras destacadas entre {chaves}
+(destaque nativo do cliente). O progresso de missões é exibido em HUD persistente.
+Feedback imediato é dado por notificações toast. Janelas modais são RESTRITAS a
+confirmações críticas irreversíveis, Loja e Banco. Jamais para progresso de missão.
+
+▶ PILAR 6 – RASTREABILIDADE OBRIGATÓRIA POR LOGS (DEBUG FRIENDLY)
+Todo script que contenha lógica condicional (tópicos, estados, validações) DEVE
+incluir mensagens de debug no console do servidor, utilizando o prefixo "DEBUG:".
+O objetivo é fornecer ao assistente e ao desenvolvedor uma trilha completa do
+que está sendo interpretado pelo código, facilitando depuração, manutenção e
+futuras interações com o assistente.
+
+Formato padrão:
+  print("DEBUG: NomeDaFunção - descrição contextual, var=valor")
+
+Exemplos:
+  print("DEBUG: greetCallback - player=" .. player:getName())
+  print("DEBUG: creatureSayCallback - msg=" .. msg .. " topic=" .. topic)
+  print("DEBUG: isGuestAccount - conta=" .. accountName)
+
+Os logs DEVEM ser escritos em português (exceto os nomes de variáveis) e devem
+cobrir ao menos:
+  - Entrada e saída de funções de callback (onLogin, creatureSayCallback etc.).
+  - Mudanças de tópico/estado (setTopic, setStorageValue).
+  - Resultados de consultas ou verificações importantes.
+  - Erros inesperados (pcall, p.ex.).
+
+================================================================================
+🗂️ ÍNDICE DE DOCUMENTOS (GUIAS TEMÁTICOS)
+================================================================================
+
+Os documentos abaixo compõem o conhecimento completo do Projeto MCR. Cada um é
+autossuficiente e contém regras, checklists, exemplos e instruções específicas
+para o assistente.
+
+[1] MCR - Guia de Compilação (Servidor).txt
+    Como compilar o Canary (v3.4.1) a partir do código-fonte, com todas as
+    customizações MCR (identidade visual, console UTF-8, bindings).
+
+[2] MCR - Guia de Compilação (Cliente).txt
+    Como compilar o OTClient Redemption, configurar cache portátil, aplicar
+    customizações visuais e integrar os módulos MCR.
+
+[3] MCR - Guia de Configuração (Servidor e Rede).txt
+    Configuração completa de config.lua, OTCFEATURES, portas (7171/7172/7173),
+    .env do Login Server, firewall e segurança.
+
+[4] MCR - Guia do Login Server.txt
+    API REST (Go): endpoints /register, /login, /change_password. Padrão de
+    error_code, hash SHA1, variáveis de ambiente, CORS, tratamento de panics.
+
+[5] MCR - Guia de Interface (OTUI e Lua Cliente).txt
+    Sintaxe OTUI (proibições de {}, --, HorizontalLayout), fontes bitmap,
+    codificação de scripts Lua como ISO-8859-1, métodos proibidos no Redemption,
+    centralização manual.
+
+[6] MCR - Guia de Narrativa e Diálogos.txt
+    Biblioteca npc_utils.lua, funções de reconhecimento de sinônimos,
+    personalização por sexo/vocação, variação de frases, tom fantasioso.
+
+[7] MCR - Guia de Quests (Sistema Híbrido SQH).txt
+    Sistema de Quests Híbrido: chat com destaque por {chaves}, HUD de missões,
+    notificações toast, checklist de qualidade de quest, exemplo completo
+    "O Lamento da Sereia".
+
+[8] MCR - Guia de Criação de Conta e Personagem.txt
+    Fluxo do Account Manager "Alma", Salão dos Destinos, NPC Oráculo, validação
+    de nomes (lista branca), escolha de sexo e vocação, criação automática.
+
+[9] MCR - Guia de Banco de Dados e Infraestrutura.txt
+    Configuração do MySQL/MariaDB (XAMPP), charset utf8mb4, tabelas, schema,
+    phpMyAdmin, procedimentos de backup e restauração.
+
+[10] MCR - Guia de Tradução e Localização (PT-BR).txt
+     Regras completas de codificação de arquivos (UTF-8 com BOM vs ISO-8859-1),
+     acentuação em strings de rede, mensagens de sistema, logs e interface.
+
+================================================================================
+🧠 REGRA DE OURO PARA O ASSISTENTE (INTEGRAÇÃO DE GUIAS)
+================================================================================
+
+SEMPRE que você, assistente, for modificar ou criar QUALQUER arquivo do projeto
+(C++, Lua servidor, Lua cliente, OTUI, Go, configuração), você DEVE:
+
+1. Identificar TODOS os guias temáticos que se aplicam ao contexto da tarefa.
+   Exemplo: ao editar um script Lua de NPC, aplique os guias [6] Narrativa,
+   [7] Quests, [10] Tradução e [3] Configuração (para storages/IDs).
+
+2. Carregar mentalmente as "Regras de Revisão para o Assistente" de cada um
+   desses guias.
+
+3. Executar uma revisão tripla que combine as listas de verificação de TODOS os
+   guias pertinentes.
+
+4. Incluir na resposta a seção "✅ Autorevisão do Assistente", listando quais
+   guias foram consultados e marcando os checklists específicos e universais.
+
+Esta é a ÚNICA maneira de garantir que nenhuma regra seja violada e que a
+coerência do Projeto MCR seja mantida em todas as camadas.
+
+================================================================================
+🔗 REPOSITÓRIO OFICIAL
+================================================================================
+GitHub: https://github.com/Player-Kheltz/ProjetoMCR
+Estrutura: Canary/ | OTClient/ | LoginServer/ | docs/ | MyAAC/
+
+Toda alteração de código ou documentação DEVE ser commitada neste repositório.
+Consulte o MCR - Guia de Configuração para instruções de versionamento com Git.
+
+================================================================================
+FIM DO ÍNDICE GERAL
+================================================================================

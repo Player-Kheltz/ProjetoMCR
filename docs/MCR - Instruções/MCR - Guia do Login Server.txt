@@ -1,0 +1,263 @@
+================================================================================
+PROJETO MCR – GUIA DO LOGIN SERVER
+Base: Login Server (opentibiabr/login-server) em Go
+Arquivo: MCR - Guia do Login Server.txt
+================================================================================
+
+🎯 OBJETIVO DESTE GUIA
+Fornecer todas as regras, especificações de API, protocolos de erro e lições
+aprendidas referentes ao Login Server do Projeto MCR. Este componente é responsável
+por autenticar contas, retornar listas de personagens e gerenciar a criação
+automática de contas (Account Manager "Alma"). Toda a comunicação com o cliente
+é feita via HTTP REST na porta 8080.
+
+Este guia também estabelece as regras que o assistente DEVE seguir ao modificar ou
+expandir o código Go do Login Server (src/api/*.go, src/database/*.go, main.go).
+
+================================================================================
+⚠️ REGRAS DE REVISÃO PARA O ASSISTENTE (GO – LOGIN SERVER)
+================================================================================
+
+Ao modificar QUALQUER arquivo .go no diretório LoginServer/, o assistente DEVE:
+
+1. Comentários e mensagens de log: em PT-BR (nomes de variáveis e campos JSON
+   em inglês, seguindo o padrão snake_case da API).
+2. Garantir que todos os handlers retornem JSON com cabeçalho correto:
+   Content-Type: application/json; charset=utf-8
+3. NUNCA usar strings acentuadas diretamente nas respostas JSON. Utilizar SEMPRE
+   o padrão error_code (código padronizado em inglês) que será mapeado para
+   mensagens em PT-BR no cliente Lua (ISO-8859-1). (Lição da Fase 22.3)
+4. Validar e sanitizar entradas (Unicode NFC, trimming de espaços) antes de
+   processar.
+5. Senhas: manipuladas exclusivamente como hash SHA1. Jamais logar ou retornar
+   senhas em texto plano.
+6. Toda nova rota deve incluir recover() para capturar panics e logar o erro
+   antes de retornar HTTP 500.
+7. Consultas SQL DEVEM usar placeholders parametrizados (?) e nunca concatenar
+   strings do usuário.
+8. Se adicionar um novo error_code, documentá-lo aqui e garantir que o cliente
+   Lua tenha o mapeamento correspondente no arquivo registro.lua (ou similar).
+
+================================================================================
+📁 ESTRUTURA DO LOGIN SERVER (MCR)
+================================================================================
+
+O código-fonte está em ProjetoMCR/LoginServer/. Os principais diretórios são:
+
+- main.go              → entrada, configuração de rotas, recover() global
+- src/api/register.go  → handler do endpoint /register
+- src/api/login.go     → handler do endpoint /login
+- src/database/players.go → consultas à tabela players (lista de personagens)
+- .env                 → variáveis de ambiente (NÃO versionado)
+- .env.example         → template público sem senhas
+
+================================================================================
+🌐 ENDPOINTS REST
+================================================================================
+
+Todos os endpoints respondem em JSON. O cliente OTClient faz as requisições via
+HTTP.post (módulo client_entergame/entergame.lua).
+
+Base URL: http://127.0.0.1:8080
+
+1. POST /register
+   - Entrada (JSON):
+     {
+       "account": "nomeUsuario",
+       "password": "senha123",
+       "confirm_password": "senha123"
+     }
+   - Validações:
+     * account: 3 a 32 caracteres, alfanumérico (regex ^[\p{L}\p{N}_-]+$ Unicode).
+       Deve ser único na tabela accounts.
+     * password: mínimo 8 caracteres, com ao menos uma letra e um número.
+     * confirm_password deve ser igual a password.
+   - Processamento:
+     * Gera hash SHA1 da senha.
+     * Insere registro na tabela accounts com email = "" (vazio).
+     * Retorna sucesso ou erro (HTTP 200, 400, 409).
+   - Respostas (padrão error_code):
+     Sucesso:         {"status":"success","error_code":"","message":""}
+     Nome em uso:     {"status":"error","error_code":"account_name_taken","message":""}
+     Senha fraca:     {"status":"error","error_code":"password_too_weak","message":""}
+     Campos inválidos:{"status":"error","error_code":"invalid_fields","message":""}
+   - O campo "message" pode ficar vazio; o cliente usa error_code.
+   - Endpoint originalmente não existia; foi adicionado na Fase 1.
+
+2. POST /login
+   - Entrada (JSON):
+     {
+       "account": "nomeUsuario",
+       "password": "senha123"
+     }
+   - Processamento:
+     * Consulta a conta no banco, verifica hash SHA1.
+     * Se autenticado, busca a lista de personagens e informações do servidor.
+     * Tradução nome→email: O Canary autentica por email, mas o jogador usa o
+       nome da conta. O Login Server busca o email (vazio) associado ao nome
+       e o envia ao Canary. (Fase 13)
+     * Garante que "characters" seja um array vazio ([]) se não houver
+       personagens, NUNCA null. (Fase 4)
+   - Resposta de sucesso inclui:
+     {
+       "session": { ... },
+       "worlds": [{ "name":"ProjetoMCR", "externalport":7173, ... }],
+       "characters": []
+     }
+   - Erro: retorna erro de autenticação com error_code "invalid_credentials".
+
+3. POST /change_password (PLANEJADO – FUTURO)
+   - Será usado pelo Account Manager "Alma" para alterar senha.
+   - Entrada (JSON):
+     {
+       "account": "nomeUsuario",
+       "current_password": "senhaAtual",
+       "new_password": "novaSenha123"
+     }
+   - Validações: autenticação via senha atual, força da nova senha.
+   - Processamento: atualiza hash SHA1 da nova senha no banco.
+
+4. GET /guest_login (NEW – Projeto MCR)
+   - Método: GET (não requer corpo)
+   - Resposta JSON:
+     {
+       "status": "success",
+       "account": "guest_xxxxxxxx",
+       "password": "senhaAleatoria",
+       "character": "Guest_xxxxxxxx"
+     }
+   - A conta é criada com email = account (compatível com autenticação Canary).
+   - O personagem temporário é inserido com nome aleatório (prefixo "Guest_") para evitar duplicatas.
+   - Uma rotina de limpeza remove contas guest inativas há mais de 30 minutos (usa coluna created_at).
+   - Em caso de erro, retorna error_code "guest_creation_failed" ou "alma_creation_failed".
+
+================================================================================
+⚠️ PADRÃO DE ERROR_CODE (OBRIGATÓRIO)
+================================================================================
+
+Devido a problemas de encoding entre Go (UTF-8) e o OTClient (ISO-8859-1 nas
+respostas HTTP interpretadas pelo Lua), o Login Server NÃO envia strings
+acentuadas prontas. Em vez disso, retorna um código padronizado (error_code)
+que é mapeado para mensagens em PT-BR no cliente.
+
+Tabela de error_code atuais (atualizar conforme novos):
+
+| error_code              | Mensagem em PT-BR (cliente)                |
+|-------------------------|--------------------------------------------|
+| account_name_taken      | O nome de conta já está em uso.            |
+| password_too_weak       | A senha deve ter 8+ caracteres com letras e números. |
+| invalid_fields          | Preencha todos os campos corretamente.     |
+| invalid_credentials     | Nome de conta ou senha incorretos.         |
+| registration_success    | Conta criada com sucesso!                  |
+| guest_creation_failed   | Falha ao criar conta convidada.            |
+| alma_creation_failed    | Falha ao criar personagem convidado.       |
+
+Mapeamento no cliente (exemplo em registro.lua):
+lua
+local ERROR_MESSAGES = {
+  account_name_taken = "O nome de conta já está em uso.",
+  password_too_weak = "A senha deve ter 8+ caracteres com letras e números.",
+  -- ...
+}
+
+================================================================================
+🔐 HASH DE SENHAS (SHA1)
+================================================================================
+
+O projeto utiliza SHA1 para hashing de senhas, garantindo compatibilidade imediata
+entre Login Server e Canary (Fase 6). A biblioteca utilizada é a padrão do Go
+(crypto/sha1). Exemplo de geração:
+
+import "crypto/sha1"
+import "encoding/hex"
+
+func hashPassword(password string) string {
+    h := sha1.New()
+    h.Write([]byte(password))
+    return hex.EncodeToString(h.Sum(nil))
+}
+
+O Canary também está configurado com passwordType = "sha1" no config.lua.
+
+================================================================================
+🛡️ TRATAMENTO DE PANICS (recover)
+================================================================================
+
+No main.go, foi adicionado um recover() global para capturar panics não tratados
+e logá-los antes de encerrar (Fase 10). Exemplo de implementação:
+
+func main() {
+    defer func() {
+        if r := recover(); r != nil {
+            log.Printf("PANIC recuperado: %v", r)
+        }
+    }()
+    // ... restante da inicialização
+}
+
+Novas rotas também devem ter recover() localmente se realizarem operações
+de risco (ex.: parsing de JSON malformado, acesso a slices).
+
+================================================================================
+⚠️ ARMADILHAS E LIÇÕES APRENDIDAS (EXTRAÍDAS DO DEVLOG)
+================================================================================
+
+- **Coluna lastlogin**: O schema do Canary 3.4.1 NÃO possui a coluna lastlogin na
+  tabela players. O arquivo src/database/players.go foi ajustado para removê-la
+  da consulta SQL e do Scan. Se atualizar o schema, verificar novamente. (Fase 10)
+- **Campo characters como null**: Se a resposta de login tiver "characters": null,
+  o OTClient quebra com "bad argument #1 to 'ipairs'". Deve ser SEMPRE [].
+  (Fase 4)
+- **SERVER_PORT no .env**: Deve ser 7173 (gamePort). Se for 7172, causa erro
+  10060 no cliente. (Fase 18)
+- **Acentuação em JSON**: Respostas com strings acentuadas enviadas pelo Go (UTF-8)
+  são interpretadas como ISO-8859-1 pelo OTClient, causando corrupção. A solução
+  definitiva foi adotar error_code e mapeamento no cliente. (Fase 22.3)
+- **Nome de conta vs Email**: O Canary autentica usando o campo email. O Login Server
+  traduz o nome de conta recebido para o email associado (vazio) antes de enviar
+  ao Canary. Isto evita ter que modificar o Canary. (Fase 13)
+
+================================================================================
+🔍 CHECKLIST DE REVISÃO PARA O ASSISTENTE (GO – LOGIN SERVER)
+================================================================================
+
+Antes de finalizar qualquer modificação no Login Server, o assistente DEVE verificar:
+
+- [ ] Comentários e mensagens de log em PT-BR (campos JSON em snake_case inglês)?
+
+- [ ] Handlers retornam Content-Type: application/json; charset=utf-8?
+
+- [ ] Strings acentuadas NÃO são enviadas diretamente no JSON; usam error_code?
+
+- [ ] Entradas são sanitizadas (Unicode NFC, trimming) antes da validação?
+
+- [ ] Senhas são manipuladas apenas como hash SHA1 e nunca logadas?
+
+- [ ] Novas rotas possuem recover() para panics?
+
+- [ ] Consultas SQL usam placeholders (?) e nunca concatenam strings do usuário?
+
+- [ ] Novo error_code foi documentado e tem mapeamento no cliente Lua?
+
+- [ ] O campo characters é sempre array ([]) e nunca null?
+
+- [ ] Endpoint /guest_login registrado como GET.
+
+- [ ] Conta guest usa email = name.
+
+- [ ] Limpeza automática configurada com created_at.
+
+
+================================================================================
+📤 COMO ATUALIZAR O REPOSITÓRIO GIT APÓS MODIFICAÇÕES
+================================================================================
+
+  git add LoginServer/src/...
+  git commit -m "feat(login): [descrição em pt-BR]"
+  git push origin main
+
+⚠️ PowerShell: usar aspas duplas em caminhos com espaços.
+
+================================================================================
+FIM DO GUIA DO LOGIN SERVER
+================================================================================
